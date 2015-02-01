@@ -1,0 +1,4 @@
+.dub/
+bin/
+dub.selections.json
+__test__library__
