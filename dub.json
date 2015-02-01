@@ -1,9 +1,10 @@
 {
-	"name": "jsonizer",
-	"description": "Flexible JSON serializer requiring minimal boilerplate",
-	"copyright": "Copyright © 2015, rcorre",
-	"authors": ["rcorre"],
-  "targetType": "library",
-	"dependencies": {
+	"name"         : "jsonizer",
+	"description"  : "Flexible JSON serializer requiring minimal boilerplate",
+	"copyright"    : "Copyright © 2015, rcorre",
+	"authors"      : ["rcorre"],
+  "license"      : "MIT",
+  "targetType"   : "library",
+	"dependencies" : {
 	}
 }
