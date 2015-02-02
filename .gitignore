@@ -1,5 +1,6 @@
 .dub/
 bin/
+docs/
 dub.selections.json
 __test__library__
 libjsonizer.a
