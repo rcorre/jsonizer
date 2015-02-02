@@ -1,3 +1,4 @@
+/// serialize and deserialize between JSONValues and other D types
 module jsonizer;
 
 import std.json;
@@ -16,8 +17,8 @@ enum jsonizeClassKeyword = "class";
 
 /// use @jsonize to mark members to be (de)serialized from/to json
 /// use @jsonize to mark a single contructor to use when creating an object using extract
+/// use @jsonize("name") to make a member use the json key "name"
 struct jsonize {
-   /// used to force a member to (de)serialize using a key differing from its name
   string key;
 }
 
@@ -100,12 +101,12 @@ JSONValue toJSON(T)(T obj) if (!isBuiltinType!T) {
 }
 
 // Extraction ------------------------------------------------------------------
-private void assertJsonType(T)(JSONValue json, JSON_TYPE[] expected ...) {
+private void enforceJsonType(T)(JSONValue json, JSON_TYPE[] expected ...) {
   enum fmt = "extract!%s expected json type to be one of %s but got json type %s. json input: %s";
-  assert(expected.canFind(json.type), format(fmt, typeid(T), expected, json.type, json));
+  enforce(expected.canFind(json.type), format(fmt, typeid(T), expected, json.type, json));
 }
 
-/// extract a string type from a json value
+/// extract a boolean from a json value
 T extract(T : bool)(JSONValue json) {
   if (json.type == JSON_TYPE.TRUE) {
     return true;
@@ -114,14 +115,14 @@ T extract(T : bool)(JSONValue json) {
     return false;
   }
   else {
-    assert(0, format("tried to extract bool from json of type %s", json.type));
+    enforce(0, format("tried to extract bool from json of type %s", json.type));
   }
 }
 
 /// extract a string type from a json value
 T extract(T : string)(JSONValue json) {
   if (json.type == JSON_TYPE.NULL) { return null; }
-  assertJsonType!T(json, JSON_TYPE.STRING);
+  enforceJsonType!T(json, JSON_TYPE.STRING);
   return cast(T) json.str;
 }
 
@@ -140,21 +141,20 @@ T extract(T : real)(JSONValue json) if (!is(T == enum)) {
     default:
       enforce(0, format("tried to extract %s from json of type %s", T.stringof, json.type));
   }
-  assert(0);
+  assert(0, "should not be reacheable");
 }
 
 /// extract an enumerated type from a json value
 T extract(T)(JSONValue json) if (is(T == enum)) {
-  assertJsonType!T(json, JSON_TYPE.STRING);
+  enforceJsonType!T(json, JSON_TYPE.STRING);
   return to!T(json.str);
 }
 
 /// extract an array from a JSONValue
 T extract(T)(JSONValue json) if (isArray!T && !isSomeString!(T)) {
   if (json.type == JSON_TYPE.NULL) { return T.init; }
-  assertJsonType!T(json, JSON_TYPE.ARRAY);
+  enforceJsonType!T(json, JSON_TYPE.ARRAY);
   alias ElementType = ForeachType!T;
-  assert(json.type == JSON_TYPE.ARRAY);
   T vals;
   foreach(idx, val ; json.array) {
     static if (isStaticArray!T) {
@@ -171,7 +171,7 @@ T extract(T)(JSONValue json) if (isArray!T && !isSomeString!(T)) {
 T extract(T)(JSONValue json) if (isAssociativeArray!T) {
   assert(is(KeyType!T : string), "toJSON requires string keys for associative array");
   if (json.type == JSON_TYPE.NULL) { return null; }
-  assertJsonType!T(json, JSON_TYPE.OBJECT);
+  enforceJsonType!T(json, JSON_TYPE.OBJECT);
   alias ValType = ValueType!T;
   T map;
   foreach(key, val ; json.object) {
@@ -182,14 +182,14 @@ T extract(T)(JSONValue json) if (isAssociativeArray!T) {
 
 /// extract a value from a json object by its key
 T extract(T)(JSONValue json, string key) {
-  assertJsonType!T(json, JSON_TYPE.OBJECT);
-  assert(key in json.object, "tried to extract non-existent key " ~ key ~ " from JSONValue");
+  enforceJsonType!T(json, JSON_TYPE.OBJECT);
+  enforce(key in json.object, "tried to extract non-existent key " ~ key ~ " from JSONValue");
   return extract!T(json.object[key]);
 }
 
 /// extract a value from a json object by its key, return defaultVal if key not found
 T extract(T)(JSONValue json, string key, T defaultVal) {
-  assertJsonType!T(json, JSON_TYPE.OBJECT);
+  enforceJsonType!T(json, JSON_TYPE.OBJECT);
   return (key in json.object) ? extract!T(json.object[key]) : defaultVal;
 }
 
@@ -198,13 +198,13 @@ T extract(T)(JSONValue json) if (!isBuiltinType!T) {
   static if (is(T == class)) {
     if (json.type == JSON_TYPE.NULL) { return null; }
   }
-  assertJsonType!T(json, JSON_TYPE.OBJECT);
+  enforceJsonType!T(json, JSON_TYPE.OBJECT);
 
   static if(is(typeof(new T) == T)) { // can object be default constructed?
     auto className = json.extract!string(jsonizeClassKeyword, null);
     if (className !is null) {
       auto instance = cast(T) Object.factory(className);
-      assert(instance !is null, "failed to instantiate " ~ className);
+      assert(instance !is null, "failed to Object.factory " ~ className);
       instance.populateFromJSON(json);
       return instance;
     }
@@ -254,7 +254,7 @@ private T invokeCustomJsonCtor(T, alias Ctor)(JSONValue json) {
     }
     else { // no value specified in json
       static if (is(defaults[i] == void)) {
-        assert(0, "parameter " ~ paramName ~ " has no default value and was not specified");
+        enforce(0, "parameter " ~ paramName ~ " has no default value and was not specified");
       }
       else {
         args[i] = defaults[i];
