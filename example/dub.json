@@ -1,0 +1,9 @@
+{
+	"name": "example",
+	"description": "Example of using jsonizer in an Entity-Component framework",
+	"copyright": "Copyright © 2015, erethar",
+	"authors": ["erethar"],
+	"dependencies": {
+    "jsonizer": { "path": ".." }
+	}
+}

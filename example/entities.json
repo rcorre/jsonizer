@@ -1,0 +1,23 @@
+{
+  "player": {
+    "position": { "x": 5, "y": 40 },
+    "components": [
+      {
+        "class": "animator.Animator",
+        "frameTime": 0.033,
+        "repeat": "loop"
+      },
+      {
+        "class": "sprite.Sprite",
+        "textureName": "person",
+        "depth": 1,
+        "textureRegion": { 
+          "x": 0, 
+          "y": 0, 
+          "w": 32, 
+          "h": 32 
+        }
+      }
+    ]
+  }
+}
