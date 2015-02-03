@@ -200,11 +200,15 @@ T extract(T)(JSONValue json) if (!isBuiltinType!T) {
   }
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
 
-  static if(is(typeof(new T) == T)) { // can object be default constructed?
+  static if (is(typeof(null) : T)) {
+    // look for class keyword in json
     auto className = json.extract!string(jsonizeClassKeyword, null);
+    // try creating an instance with Object.factory 
     if (className !is null) {
-      auto instance = cast(T) Object.factory(className);
-      assert(instance !is null, "failed to Object.factory " ~ className);
+      auto obj = Object.factory(className);
+      assert(obj !is null, "failed to Object.factory " ~ className);
+      auto instance = cast(T) obj;
+      assert(instance !is null, "failed to cast " ~ className ~ " to " ~ T.stringof);
       instance.populateFromJSON(json);
       return instance;
     }
