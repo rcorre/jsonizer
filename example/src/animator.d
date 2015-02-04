@@ -1,5 +1,6 @@
 module animator;
 
+import std.string;
 import geometry;
 import component;
 import jsonizer;
@@ -16,5 +17,13 @@ class Animator : Component {
   @jsonize {
     float frameTime;
     Repeat repeat;
+  }
+
+  override string stringify() {
+    enum fmt = 
+      `Animator Component:
+      frameTime : %f
+      repeat    : %s`;
+    return fmt.format(frameTime, repeat);
   }
 }
