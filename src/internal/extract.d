@@ -132,9 +132,10 @@ T extract(T)(JSONValue json) if (!isBuiltinType!T) {
   static if (__traits(hasMember, T, "__ctor")) {
     alias Overloads = TypeTuple!(__traits(getOverloads, T, "__ctor"));
     foreach(overload ; Overloads) {
-      if (staticIndexOf!(jsonize, __traits(getAttributes, overload)) >= 0 &&
-          canSatisfyCtor!overload(json)) {
-        return invokeCustomJsonCtor!(T, overload)(json);
+      static if (staticIndexOf!(jsonize, __traits(getAttributes, overload)) >= 0) {
+        if (canSatisfyCtor!overload(json)) {
+          return invokeCustomJsonCtor!(T, overload)(json);
+        }
       }
     }
   }
