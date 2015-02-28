@@ -109,6 +109,10 @@ unittest {
   import std.math : approxEqual;
   enum Category { one, two }
 
+  auto j0 = toJSON(true);
+  assert(j0.type == JSON_TYPE.TRUE);
+  assert(extract!bool(j0));
+
   auto j1 = toJSON("bork");
   assert(j1.type == JSON_TYPE.STRING && j1.str == "bork");
   assert(extract!string(j1) == "bork");

@@ -28,9 +28,8 @@ T extract(T : bool)(JSONValue json) {
   else if (json.type == JSON_TYPE.FALSE) {
     return false;
   }
-  else {
-    enforce(0, format("tried to extract bool from json of type %s", json.type));
-  }
+  enforce(0, format("tried to extract bool from json of type %s", json.type));
+  assert(0);
 }
 
 /// extract a string type from a json value
