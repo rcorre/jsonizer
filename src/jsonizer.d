@@ -28,7 +28,7 @@ string jsonizeKey(alias obj, string memberName)() {
     }
   }
   return null;
-} 
+}
 
 mixin template JsonizeMe() {
   import std.json      : JSONValue;
@@ -36,8 +36,8 @@ mixin template JsonizeMe() {
   import std.traits    : BaseClassesTuple;
 
   alias T = typeof(this);
-  static if (is(T == class) && 
-      __traits(hasMember, BaseClassesTuple!T[0], "populateFromJSON")) 
+  static if (is(T == class) &&
+      __traits(hasMember, BaseClassesTuple!T[0], "populateFromJSON"))
   {
     override void populateFromJSON(JSONValue json) {
       static if (!hasCustomJsonCtor!T) {
@@ -79,6 +79,8 @@ mixin template JsonizeMe() {
           enum key = jsonizeKey!(this, member);              // find @jsonize, deduce member key
           static if (key !is null) {
             alias MemberType = typeof(mixin(member));        // deduce member type
+            enforce(key in keyValPairs,                      // require key to be present
+                "required key '" ~ key ~ "' not found in json");
             auto val = extract!MemberType(keyValPairs[key]); // extract value from json
             mixin(member ~ "= val;");                        // assign value to member
           }
@@ -496,6 +498,22 @@ unittest {
   assert(reconstruct._x == b._x && reconstruct._s == b._s);
 }
 
+/// required/optional members
+unittest {
+  static struct S {
+    mixin JsonizeMe;
+
+    @jsonize {
+      int i;
+      string s;
+    }
+  }
+
+  auto json = `{ "i": 5 }`.parseJSON;
+  auto s = json.extract!S;
+  assert(s.i == 5);
+}
+
 // unfortunately these test classes must be implemented outside the unittest
 // as Object.factory (and ClassInfo.find) cannot work with nested classes
 private {
@@ -524,7 +542,7 @@ unittest {
   string classKeyA = fullyQualifiedName!TestCompA;
   string classKeyB = fullyQualifiedName!TestCompB;
 
-  assert(Object.factory(classKeyA) !is null && Object.factory(classKeyB) !is null, 
+  assert(Object.factory(classKeyA) !is null && Object.factory(classKeyB) !is null,
       "cannot factory classes in unittest -- this is a problem with the test");
 
   auto data = `[
