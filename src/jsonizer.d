@@ -17,17 +17,26 @@ public import internal.tojson;
 public import internal.extract;
 public import internal.attribute;
 
-
 string jsonizeKey(alias obj, string memberName)() {
   foreach(attr ; __traits(getAttributes, mixin("obj." ~ memberName))) {
     static if (is(attr == jsonize)) { // @jsonize someMember;
       return memberName;          // use member name as-is
     }
     else static if (is(typeof(attr) == jsonize)) { // @jsonize("someKey") someMember;
-      return attr.key;
+      return (attr.key is null) ? memberName : attr.key;
     }
   }
   return null;
+}
+
+bool isOptional(alias obj, string memberName)() {
+  // look for @jsonize("keyName", JsonizeOptional.yes)
+  foreach(attr ; __traits(getAttributes, mixin("obj." ~ memberName))) {
+    static if (is(typeof(attr) == jsonize) && attr.optional == JsonizeOptional.yes) {
+      return true;
+    }
+  }
+  return false;
 }
 
 mixin template JsonizeMe() {
@@ -46,9 +55,15 @@ mixin template JsonizeMe() {
         foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
           enum key = jsonizeKey!(this, member);              // find @jsonize, deduce member key
           static if (key !is null) {
-            alias MemberType = typeof(mixin(member));        // deduce member type
-            auto val = extract!MemberType(keyValPairs[key]); // extract value from json
-            mixin(member ~ "= val;");                        // assign value to member
+            if (key in keyValPairs) {
+              alias MemberType = typeof(mixin(member));        // deduce member type
+              auto val = extract!MemberType(keyValPairs[key]); // extract value from json
+              mixin(member ~ "= val;");                        // assign value to member
+            }
+            else {
+              enforce(isOptional!(this, member),
+                  "required key '" ~ key ~ "' not found in json");
+            }
           }
         }
       }
@@ -78,11 +93,15 @@ mixin template JsonizeMe() {
         foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
           enum key = jsonizeKey!(this, member);              // find @jsonize, deduce member key
           static if (key !is null) {
-            alias MemberType = typeof(mixin(member));        // deduce member type
-            enforce(key in keyValPairs,                      // require key to be present
-                "required key '" ~ key ~ "' not found in json");
-            auto val = extract!MemberType(keyValPairs[key]); // extract value from json
-            mixin(member ~ "= val;");                        // assign value to member
+            if (key in keyValPairs) {
+              alias MemberType = typeof(mixin(member));        // deduce member type
+              auto val = extract!MemberType(keyValPairs[key]); // extract value from json
+              mixin(member ~ "= val;");                        // assign value to member
+            }
+            else {
+              enforce(isOptional!(this, member),
+                  "required key '" ~ key ~ "' not found in json");
+            }
           }
         }
       }
@@ -503,10 +522,8 @@ unittest {
   static struct S {
     mixin JsonizeMe;
 
-    @jsonize {
-      int i;
-      string s;
-    }
+    @jsonize int i;
+    @jsonize("s", JsonizeOptional.yes) string s;
   }
 
   auto json = `{ "i": 5 }`.parseJSON;
