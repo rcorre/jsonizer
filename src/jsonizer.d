@@ -30,10 +30,17 @@ string jsonizeKey(alias obj, string memberName)() {
 }
 
 bool isOptional(alias obj, string memberName)() {
-  // look for @jsonize("keyName", JsonizeOptional.yes)
-  foreach(attr ; __traits(getAttributes, mixin("obj." ~ memberName))) {
-    static if (is(typeof(attr) == jsonize) && attr.optional == JsonizeOptional.yes) {
-      return true;
+  // start with most nested attribute and move up, looking for a JsonizeOptional tag
+  foreach_reverse(attr ; __traits(getAttributes, mixin("obj." ~ memberName))) {
+    static if (is(typeof(attr) == jsonize)) {
+      final switch (attr.optional) with (JsonizeOptional) {
+        case unspecified:
+          continue;
+        case no:
+          return false;
+        case yes:
+          return true;
+      }
     }
   }
   return false;
@@ -519,16 +526,21 @@ unittest {
 
 /// required/optional members
 unittest {
+  import std.exception : assertThrown, assertNotThrown;
   static struct S {
     mixin JsonizeMe;
 
-    @jsonize int i;
-    @jsonize("s", JsonizeOptional.yes) string s;
+    @jsonize {
+      int i;
+      @jsonize(JsonizeOptional.yes) {
+        @jsonize("_s") string s; // s is optional
+        @jsonize(JsonizeOptional.no) float f; // f is not optional (override outer attribute)
+      }
+    }
   }
 
-  auto json = `{ "i": 5 }`.parseJSON;
-  auto s = json.extract!S;
-  assert(s.i == 5);
+  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.extract!S);
+  assertThrown(`{ "i": 5 }`.parseJSON.extract!S);
 }
 
 // unfortunately these test classes must be implemented outside the unittest
