@@ -10,7 +10,7 @@ To use jsonizer, the main components you ened to be aware of are
 the methods `extract!T` and `toJSON`, the attribute `@jsonize`, and the mixin
 template `JsonizeMe`.
 
-### extract!T
+## extract!T
 `extract!T` is jsonizer's utility knife for converting a JSONValue to an object
 of type `T`. Given a `JSONValue json`
 
@@ -23,7 +23,7 @@ MyClass[string] c = json.extract!(MyClass[string]);
 ```
 
 `extract!T` will fail (with `enforce`) if the json object's type is not
-something it knows how to convert to `T`. 
+something it knows how to convert to `T`.
 
 For primitive types, `extract` leans on the side of flexibility -- for example,
 `extract!int` on a json entry of type `string` will try to parse an `int` from
@@ -32,7 +32,7 @@ the `string`.
 For user-defined types, you have to do a little work to set up your struct or
 class for jsonizer.
 
-### @jsonize and JsonizeMe
+## @jsonize and JsonizeMe
 The simplest way to make your type support json serialization is to mark its
 members with the `@jsonize` attribute and have `mixin JsonizeMe;` somewhere in
 your type definition. For example:
@@ -97,7 +97,37 @@ The above examples work on both classes and structs provided the following:
 2. Your members are marked with `@jsonize`
 3. Your type has a no-args constructor
 
-### jsonized constructors
+### optional members
+By default, if a matching json entry is not found for a member marked with `@jsonize`,
+deserialization will fail.
+If this is not desired for a given member, mark it with `JsonizeOptional`.
+
+```d
+class MyClass {
+  @jsonize int i;
+  @jsonize(JsonizeOptional.yes) float f;
+}
+```
+
+In the above example `json.extract!MyClass` will fail if it does not find a key named "i" in the
+json object, but will silently ignore the abscence of a key "f".
+
+The way @jsonize takes parameters is rather flexible. While I can't condone making your class look
+like the below example, it demonstrates the flexibility of @jsonize:
+
+```d
+class TotalMess {
+  @jsonize(JsonizeOptional.yes) {
+    @jsonize("i") int _i;
+    @jsonize("f", JsonizeOptional.no) float _f;
+    @jsonize(JsonizeOptional.no, "s") float _s;
+  }
+}
+```
+
+As the above shows, parameters may be passed in any order to @jsonize.
+
+## jsonized constructors
 In some cases, #3 above may not seem so great. What if your type needs to
 support serialization but shouldn't have a default constructor?
 In this case, you want to `@jsonize` your constructor:
@@ -117,8 +147,7 @@ class Custom {
 }
 ```
 
-
-Given a type `T` with one or more constructors tagged with `@jsonize`, 
+Given a type `T` with one or more constructors tagged with `@jsonize`,
 `extract!T` will try to match the member names and types to a constructor and
 invoke that with the corresponding values from the json object.
 Parameters with default values are considered optional; if they are not found in
@@ -144,7 +173,7 @@ marking members with `@jsonize` are only necessary for serialization -- if your
 object only needs to support deserialization, marking a constructor is
 sufficient.
 
-### factory construction
+## factory construction
 This is one of the newer and least tested features of jsonizer.
 Suppose you have the following classes:
 
