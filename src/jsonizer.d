@@ -52,10 +52,11 @@ mixin template JsonizeMe() {
   import std.traits    : BaseClassesTuple;
 
   alias T = typeof(this);
-  static if (is(T == class) &&
-      __traits(hasMember, BaseClassesTuple!T[0], "populateFromJSON"))
-  {
-    override void populateFromJSON(JSONValue json) {
+
+  // Nested mixins -- these generate private functions to perform serialization/deserialization
+  private mixin template MakeDeserializer() {
+    alias T = typeof(this);
+    private void _fromJSON(JSONValue json) {
       static if (!hasCustomJsonCtor!T) {
         auto keyValPairs = json.object;
         // check if each member is actually a member and is marked with the @jsonize attribute
@@ -75,8 +76,10 @@ mixin template JsonizeMe() {
         }
       }
     }
+  }
 
-    override JSONValue convertToJSON() {
+  private mixin template MakeSerializer() {
+    private JSONValue _toJSON() {
       JSONValue[string] keyValPairs;
       // look for members marked with @jsonize, ignore __ctor
       foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
@@ -92,42 +95,31 @@ mixin template JsonizeMe() {
       return json;
     }
   }
+
+  // generate private functions with no override specifiers
+  mixin MakeSerializer GeneratedSerializer;
+  mixin MakeDeserializer GeneratedDeserializer;
+
+  // expose the methods generated above by wrapping them in public methods.
+  // apply the overload attribute to the public methods if already implemented in base class.
+  static if (is(T == class) &&
+      __traits(hasMember, BaseClassesTuple!T[0], "populateFromJSON"))
+  {
+    override void populateFromJSON(JSONValue json) {
+      GeneratedDeserializer._fromJSON(json);
+    }
+
+    override JSONValue convertToJSON() {
+      return GeneratedSerializer._toJSON();
+    }
+  }
   else {
     void populateFromJSON(JSONValue json) {
-      static if (!hasCustomJsonCtor!T) {
-        auto keyValPairs = json.object;
-        // check if each member is actually a member and is marked with the @jsonize attribute
-        foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
-          enum key = jsonizeKey!(this, member);              // find @jsonize, deduce member key
-          static if (key !is null) {
-            if (key in keyValPairs) {
-              alias MemberType = typeof(mixin(member));        // deduce member type
-              auto val = extract!MemberType(keyValPairs[key]); // extract value from json
-              mixin(member ~ "= val;");                        // assign value to member
-            }
-            else {
-              enforce(isOptional!(this, member),
-                  "required key '" ~ key ~ "' not found in json");
-            }
-          }
-        }
-      }
+      GeneratedDeserializer._fromJSON(json);
     }
 
     JSONValue convertToJSON() {
-      JSONValue[string] keyValPairs;
-      // look for members marked with @jsonize, ignore __ctor
-      foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
-        enum key = jsonizeKey!(this, member); // find @jsonize, deduce member key
-        static if(key !is null) {
-          auto val = mixin(member);           // get the member's value
-          keyValPairs[key] = toJSON(val);     // add the pair <memberKey> : <memberValue>
-        }
-      }
-      // construct the json object
-      JSONValue json;
-      json.object = keyValPairs;
-      return json;
+      return GeneratedSerializer._toJSON();
     }
   }
 }
