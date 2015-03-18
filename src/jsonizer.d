@@ -50,6 +50,7 @@ mixin template JsonizeMe() {
   import std.json      : JSONValue;
   import std.typetuple : Erase;
   import std.traits    : BaseClassesTuple;
+  import std.exception : enforce;
 
   alias T = typeof(this);
 
