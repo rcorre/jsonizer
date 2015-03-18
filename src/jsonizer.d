@@ -67,7 +67,7 @@ mixin template JsonizeMe() {
             if (key in keyValPairs) {
               alias MemberType = typeof(mixin(member));        // deduce member type
               auto val = extract!MemberType(keyValPairs[key]); // extract value from json
-              mixin(member ~ "= val;");                        // assign value to member
+              mixin("this." ~ member ~ "= val;");              // assign value to member
             }
             else {
               enforce(isOptional!(this, member),
@@ -86,7 +86,7 @@ mixin template JsonizeMe() {
       foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
         enum key = jsonizeKey!(this, member); // find @jsonize, deduce member key
         static if(key !is null) {
-          auto val = mixin(member);           // get the member's value
+          auto val = mixin("this." ~ member); // get the member's value
           keyValPairs[key] = toJSON(val);     // add the pair <memberKey> : <memberValue>
         }
       }
@@ -536,8 +536,22 @@ unittest {
   assertThrown(`{ "i": 5 }`.parseJSON.extract!S);
 }
 
-// unfortunately these test classes must be implemented outside the unittest
-// as Object.factory (and ClassInfo.find) cannot work with nested classes
+// members that potentially conflict with variables used in the mixin
+unittest {
+  static struct Foo {
+    mixin JsonizeMe;
+    @jsonize int val;
+  }
+
+  Foo orig = Foo(3);
+  auto serialized   = orig.toJSON;
+  auto deserialized = serialized.extract!Foo;
+
+  assert(deserialized.val == orig.val);
+}
+
+/// unfortunately these test classes must be implemented outside the unittest
+/// as Object.factory (and ClassInfo.find) cannot work with nested classes
 private {
   class TestComponent {
     mixin JsonizeMe;
