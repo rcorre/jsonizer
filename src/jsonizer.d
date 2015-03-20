@@ -46,7 +46,11 @@ bool isOptional(alias obj, string memberName)() {
   return false;
 }
 
-mixin template JsonizeMe() {
+/// Generate json (de)serialization methods for the type this is mixed in to.
+/// The methods `_toJSON` and `_fromJSON` are generated.
+/// Params:
+///   ignoreMissing = whether to silently ignore json keys that do not map to serialized members
+mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
   import std.json      : JSONValue;
   import std.typetuple : Erase;
   import std.traits    : BaseClassesTuple;
@@ -58,13 +62,17 @@ mixin template JsonizeMe() {
   private mixin template MakeDeserializer() {
     alias T = typeof(this);
     private void _fromJSON(JSONValue json) {
+      // TODO: look into moving this up a level and not generating _fromJSON at all.
       static if (!hasCustomJsonCtor!T) {
+        // track fields found to detect keys that do not map to serialized fields
+        int fieldsFound = 0;
         auto keyValPairs = json.object;
         // check if each member is actually a member and is marked with the @jsonize attribute
         foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
           enum key = jsonizeKey!(this, member);              // find @jsonize, deduce member key
           static if (key !is null) {
             if (key in keyValPairs) {
+              ++fieldsFound;
               alias MemberType = typeof(mixin(member));        // deduce member type
               auto val = extract!MemberType(keyValPairs[key]); // extract value from json
               mixin("this." ~ member ~ "= val;");              // assign value to member
@@ -74,6 +82,14 @@ mixin template JsonizeMe() {
                   "required key '" ~ key ~ "' not found in json");
             }
           }
+        }
+
+        // perform check for excess fields if requested
+        static if (ignoreMissing == JsonizeIgnoreExtraKeys.no) {
+          // TODO: when jsonize exceptions are implemented,
+          // include names of missing fields in exception message
+          enforce(fieldsFound == keyValPairs.keys.length,
+              "key in json object does not map to a serialized field");
         }
       }
     }
@@ -534,6 +550,33 @@ unittest {
 
   assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.extract!S);
   assertThrown(`{ "i": 5 }`.parseJSON.extract!S);
+}
+
+/// `JsonizeIgnoreExtraKeys` behavior
+unittest {
+  static struct NoCares {
+    mixin JsonizeMe;
+    @jsonize {
+      int i;
+      float f;
+    }
+  }
+
+  static struct VeryStrict {
+    mixin JsonizeMe!(JsonizeIgnoreExtraKeys.no);
+    @jsonize {
+      int i;
+      float f;
+    }
+  }
+
+  // no extra fields, neither should throw
+  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.extract!NoCares);
+  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.extract!VeryStrict);
+
+  // extra field "s", strict should throw
+  assertNotThrown(`{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.extract!NoCares);
+  assertThrown(`{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.extract!VeryStrict);
 }
 
 // members that potentially conflict with variables used in the mixin

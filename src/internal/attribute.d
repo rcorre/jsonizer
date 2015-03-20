@@ -8,6 +8,13 @@ enum JsonizeOptional {
   yes          /// field is optional -- deserialization can continue if field is not found in json
 }
 
+// TODO: use std.typecons : Flag instead? Would likely need to public import.
+/// Whether to silently ignore json keys that do not map to serialized members.
+enum JsonizeIgnoreExtraKeys {
+  no, /// silently ignore extra keys in the json object being deserialized
+  yes /// fail if the json object contains a keys that does not map to a serialized field
+}
+
 /// use @jsonize to mark members to be (de)serialized from/to json
 /// use @jsonize to mark a single contructor to use when creating an object using extract
 /// use @jsonize("name") to make a member use the json key "name"
