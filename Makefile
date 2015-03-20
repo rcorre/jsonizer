@@ -13,6 +13,8 @@ release:
 
 test:
 	@dub test $(SETCOMPILER) --quiet
+	@cd example
+	@dub test
 
 clean:
 	@dub clean
