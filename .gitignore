@@ -1,6 +1,12 @@
+# dub
 .dub/
-bin/
-docs/
 dub.selections.json
+
+# docs
+docs/
+docs.json
+__dummy.html
+
+# library
 __test__library__
 libjsonizer.a
