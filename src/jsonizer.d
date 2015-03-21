@@ -413,14 +413,14 @@ unittest {
 
   // write an array of user-defined structs
   auto array = [Data(5, "preposterous", 12.7), Data(8, "tesseract", -2.7), Data(5, "baby sloths", 102.7)];
-  writeJSON(array, file);
-  auto readBack = readJSON!(Data[])(file);
+  file.writeJSON(array);
+  auto readBack = file.readJSON!(Data[]);
   assert(readBack == array);
 
   // now try an associative array
   auto aa = ["alpha": Data(27, "yams", 0), "gamma": Data(88, "spork", -99.999)];
-  writeJSON(aa, file);
-  auto aaReadBack = readJSON!(Data[string])(file);
+  file.writeJSON(aa);
+  auto aaReadBack = file.readJSON!(Data[string]);
   assert(aaReadBack == aa);
 }
 

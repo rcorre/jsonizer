@@ -6,20 +6,28 @@ import std.file;
 import internal.tojson;
 import internal.extract;
 
-// Reading/Writing JSON Files
-/// read a json-constructable object from a file
-T readJSON(T)(string file) {
-  auto json = parseJSON(readText(file));
+/// Read a json-constructable object from a file.
+/// Params:
+///   path = filesystem path to json file
+/// Returns: object parsed from json file
+T readJSON(T)(string path) {
+  auto json = parseJSON(readText(path));
   return extract!T(json);
 }
 
-/// shortcut to read file directly into JSONValue
-auto readJSON(string file) {
-  return parseJSON(readText(file));
+/// Read contents of a json file directly into a JSONValue.
+/// Params:
+///   path = filesystem path to json file
+/// Returns: a `JSONValue` parsed from the file
+auto readJSON(string path) {
+  return parseJSON(readText(path));
 }
 
-/// write a jsonizeable object to a file
-void writeJSON(T)(T obj, string file) {
+/// Write a jsonizeable object to a file.
+/// Params:
+///   path = filesystem path to write json to
+///   obj  = object to convert to json and write to path
+void writeJSON(T)(string path, T obj) {
   auto json = toJSON!T(obj);
-  file.write(json.toPrettyString);
+  path.write(json.toPrettyString);
 }
