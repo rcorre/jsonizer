@@ -7,26 +7,25 @@ data. jsonizer is not a standalone json parser, but rather a convenience layer
 on top of `std.json`, allowing you to more easily work with `JSONValue` objects.
 
 To use jsonizer, the main components you ened to be aware of are
-the methods `extract!T` and `toJSON`, the attribute `@jsonize`, and the mixin
+the methods `fromJSON!T` and `toJSON`, the attribute `@jsonize`, and the mixin
 template `JsonizeMe`.
 
-## extract!T
-`extract!T` is jsonizer's utility knife for converting a JSONValue to an object
-of type `T`. Given a `JSONValue json`
+## fromJSON!T
+`fromJSON!T` converts a `JSONValue` into an object of type `T`.
 
 ```d
 JSONValue json; // lets assume this has some data in it
-int i             = json.extract!int;
-MyEnum e          = json.extract!MyEnum;
-MyStruct[] s      = json.extract!(MyStruct[]);
-MyClass[string] c = json.extract!(MyClass[string]);
+int i             = json.fromJSON!int;
+MyEnum e          = json.fromJSON!MyEnum;
+MyStruct[] s      = json.fromJSON!(MyStruct[]);
+MyClass[string] c = json.fromJSON!(MyClass[string]);
 ```
 
-`extract!T` will fail (with `enforce`) if the json object's type is not
+`fromJSON!T` will fail (with `enforce`) if the json object's type is not
 something it knows how to convert to `T`.
 
-For primitive types, `extract` leans on the side of flexibility -- for example,
-`extract!int` on a json entry of type `string` will try to parse an `int` from
+For primitive types, `fromJSON` leans on the side of flexibility -- for example,
+`fromJSON!int` on a json entry of type `string` will try to parse an `int` from
 the `string`.
 
 For user-defined types, you have to do a little work to set up your struct or
@@ -49,7 +48,7 @@ struct S {
 }
 ```
 
-The above could be deserialized by calling `extract!S` from a json object like:
+The above could be deserialized by calling `fromJSON!S` from a json object like:
 
 ```json
 { "x": 5, "f": 1.2 }
@@ -85,7 +84,7 @@ struct S {
 ```
 
 Assuming `dateToString` and `dateFromString` are some functions you defined, the
-above could be `extract`ed from a json object looking like:
+above could be `fromJSON`ed from a json object looking like:
 
 ```json
 { "f": 2.1, "date": "2015-05-01" }
@@ -97,7 +96,7 @@ The above examples work on both classes and structs provided the following:
 2. Your members are marked with `@jsonize`
 3. Your type has a no-args constructor
 
-### optional members
+### Optional members
 By default, if a matching json entry is not found for a member marked with `@jsonize`,
 deserialization will fail.
 If this is not desired for a given member, mark it with `JsonizeOptional`.
@@ -109,7 +108,7 @@ class MyClass {
 }
 ```
 
-In the above example `json.extract!MyClass` will fail if it does not find a key named "i" in the
+In the above example `json.fromJSON!MyClass` will fail if it does not find a key named "i" in the
 json object, but will silently ignore the abscence of a key "f".
 
 The way @jsonize takes parameters is rather flexible. While I can't condone making your class look
@@ -127,7 +126,21 @@ class TotalMess {
 
 As the above shows, parameters may be passed in any order to @jsonize.
 
-## jsonized constructors
+### Extra Members
+If you would like to ensure that every entry in a json object is being
+deserialized, you can pass `JsonizeIgnoreExtraKeys.no` to `JsonizeMe`.
+In the example below, `fromJSON!S(jobject)` will `enforce` that no fields other
+than `s` and `i` exist in `jobject`.
+
+```d
+struct S {
+  mixin JsonizeMe(JsonizeIgnoreExtraKeys.no);
+  string s;
+  int i;
+}
+```
+
+## Constructors
 In some cases, #3 above may not seem so great. What if your type needs to
 support serialization but shouldn't have a default constructor?
 In this case, you want to `@jsonize` your constructor:
@@ -148,7 +161,7 @@ class Custom {
 ```
 
 Given a type `T` with one or more constructors tagged with `@jsonize`,
-`extract!T` will try to match the member names and types to a constructor and
+`fromJSON!T` will try to match the member names and types to a constructor and
 invoke that with the corresponding values from the json object.
 Parameters with default values are considered optional; if they are not found in
 the json, the default value will be used. The above example could be constructed
@@ -173,7 +186,7 @@ marking members with `@jsonize` are only necessary for serialization -- if your
 object only needs to support deserialization, marking a constructor is
 sufficient.
 
-## factory construction
+## Factory construction
 This is one of the newer and least tested features of jsonizer.
 Suppose you have the following classes:
 
@@ -212,7 +225,7 @@ and the following json:
 ]
 ```
 
-Calling `extract!(TestComponent[])` on a `JSONValue` parsed from the above json
+Calling `fromJSON!(TestComponent[])` on a `JSONValue` parsed from the above json
 string should yield a TestComponent[] of length 2.
 While both have the static type `TestComponent`, one is actually a `TestCompA`
 and the other is a `TestCompB`, both with their fields appropriately populated.
