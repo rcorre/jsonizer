@@ -20,6 +20,12 @@ private void enforceJsonType(T)(JSONValue json, JSON_TYPE[] expected ...) {
   enforce(expected.canFind(json.type), format(fmt, typeid(T), expected, json.type, json));
 }
 
+deprecated("use fromJSON instead") {
+  T extract(T)(JSONValue json) {
+    return json.fromJSON!T;
+  }
+}
+
 /// extract a boolean from a json value
 T fromJSON(T : bool)(JSONValue json) {
   if (json.type == JSON_TYPE.TRUE) {
