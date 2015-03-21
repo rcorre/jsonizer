@@ -1,5 +1,5 @@
-/// `extract!T` converts a `JSONValue` to an instance of `T`
-module internal.extract;
+/// `fromJSON!T` converts a `JSONValue` to an instance of `T`
+module internal.fromjson;
 
 import std.json;
 import std.conv;
@@ -12,16 +12,16 @@ import std.typetuple;
 import std.typecons : staticIota;
 import internal.attribute;
 
-/// json member used to map a json object to a D type  
+/// json member used to map a json object to a D type
 enum jsonizeClassKeyword = "class";
 
 private void enforceJsonType(T)(JSONValue json, JSON_TYPE[] expected ...) {
-  enum fmt = "extract!%s expected json type to be one of %s but got json type %s. json input: %s";
+  enum fmt = "fromJSON!%s expected json type to be one of %s but got json type %s. json input: %s";
   enforce(expected.canFind(json.type), format(fmt, typeid(T), expected, json.type, json));
 }
 
 /// extract a boolean from a json value
-T extract(T : bool)(JSONValue json) {
+T fromJSON(T : bool)(JSONValue json) {
   if (json.type == JSON_TYPE.TRUE) {
     return true;
   }
@@ -33,14 +33,14 @@ T extract(T : bool)(JSONValue json) {
 }
 
 /// extract a string type from a json value
-T extract(T : string)(JSONValue json) {
+T fromJSON(T : string)(JSONValue json) {
   if (json.type == JSON_TYPE.NULL) { return null; }
   enforceJsonType!T(json, JSON_TYPE.STRING);
   return cast(T) json.str;
 }
 
 /// extract a numeric type from a json value
-T extract(T : real)(JSONValue json) if (!is(T == enum)) {
+T fromJSON(T : real)(JSONValue json) if (!is(T == enum)) {
   switch(json.type) {
     case JSON_TYPE.FLOAT:
       return cast(T) json.floating;
@@ -58,56 +58,56 @@ T extract(T : real)(JSONValue json) if (!is(T == enum)) {
 }
 
 /// extract an enumerated type from a json value
-T extract(T)(JSONValue json) if (is(T == enum)) {
+T fromJSON(T)(JSONValue json) if (is(T == enum)) {
   enforceJsonType!T(json, JSON_TYPE.STRING);
   return to!T(json.str);
 }
 
 /// extract an array from a JSONValue
-T extract(T)(JSONValue json) if (isArray!T && !isSomeString!(T)) {
+T fromJSON(T)(JSONValue json) if (isArray!T && !isSomeString!(T)) {
   if (json.type == JSON_TYPE.NULL) { return T.init; }
   enforceJsonType!T(json, JSON_TYPE.ARRAY);
   alias ElementType = ForeachType!T;
   T vals;
   foreach(idx, val ; json.array) {
     static if (isStaticArray!T) {
-      vals[idx] = val.extract!ElementType;
+      vals[idx] = val.fromJSON!ElementType;
     }
     else {
-      vals ~= val.extract!ElementType;
+      vals ~= val.fromJSON!ElementType;
     }
   }
   return vals;
 }
 
 /// extract an associative array from a JSONValue
-T extract(T)(JSONValue json) if (isAssociativeArray!T) {
+T fromJSON(T)(JSONValue json) if (isAssociativeArray!T) {
   assert(is(KeyType!T : string), "toJSON requires string keys for associative array");
   if (json.type == JSON_TYPE.NULL) { return null; }
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   alias ValType = ValueType!T;
   T map;
   foreach(key, val ; json.object) {
-    map[key] = extract!ValType(val);
+    map[key] = fromJSON!ValType(val);
   }
   return map;
 }
 
 /// extract a value from a json object by its key
-T extract(T)(JSONValue json, string key) {
+T fromJSON(T)(JSONValue json, string key) {
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   enforce(key in json.object, "tried to extract non-existent key " ~ key ~ " from JSONValue");
-  return extract!T(json.object[key]);
+  return fromJSON!T(json.object[key]);
 }
 
 /// extract a value from a json object by its key, return defaultVal if key not found
-T extract(T)(JSONValue json, string key, T defaultVal) {
+T fromJSON(T)(JSONValue json, string key, T defaultVal) {
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
-  return (key in json.object) ? extract!T(json.object[key]) : defaultVal;
+  return (key in json.object) ? fromJSON!T(json.object[key]) : defaultVal;
 }
 
 /// extract a user-defined class or struct from a JSONValue
-T extract(T)(JSONValue json) if (!isBuiltinType!T) {
+T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
   static if (is(T == class)) {
     if (json.type == JSON_TYPE.NULL) { return null; }
   }
@@ -115,8 +115,8 @@ T extract(T)(JSONValue json) if (!isBuiltinType!T) {
 
   static if (is(typeof(null) : T)) {
     // look for class keyword in json
-    auto className = json.extract!string(jsonizeClassKeyword, null);
-    // try creating an instance with Object.factory 
+    auto className = json.fromJSON!string(jsonizeClassKeyword, null);
+    // try creating an instance with Object.factory
     if (className !is null) {
       auto obj = Object.factory(className);
       assert(obj !is null, "failed to Object.factory " ~ className);
@@ -168,7 +168,7 @@ private T invokeCustomJsonCtor(T, alias Ctor)(JSONValue json) {
   foreach(i ; staticIota!(0, params.length)) {
     enum paramName = params[i];
     if (paramName in json.object) {
-      args[i] = json.object[paramName].extract!(Types[i]);
+      args[i] = json.object[paramName].fromJSON!(Types[i]);
     }
     else { // no value specified in json
       static if (is(defaults[i] == void)) {

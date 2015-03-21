@@ -4,7 +4,7 @@ module internal.io;
 import std.json;
 import std.file;
 import internal.tojson;
-import internal.extract;
+import internal.fromjson;
 
 /// Read a json-constructable object from a file.
 /// Params:
@@ -12,7 +12,7 @@ import internal.extract;
 /// Returns: object parsed from json file
 T readJSON(T)(string path) {
   auto json = parseJSON(readText(path));
-  return extract!T(json);
+  return fromJSON!T(json);
 }
 
 /// Read contents of a json file directly into a JSONValue.

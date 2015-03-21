@@ -14,7 +14,7 @@ import std.typecons : staticIota;
 
 public import internal.io;
 public import internal.tojson;
-public import internal.extract;
+public import internal.fromjson;
 public import internal.attribute;
 
 string jsonizeKey(alias obj, string memberName)() {
@@ -73,9 +73,9 @@ mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
           static if (key !is null) {
             if (key in keyValPairs) {
               ++fieldsFound;
-              alias MemberType = typeof(mixin(member));        // deduce member type
-              auto val = extract!MemberType(keyValPairs[key]); // extract value from json
-              mixin("this." ~ member ~ "= val;");              // assign value to member
+              alias MemberType = typeof(mixin(member));         // deduce member type
+              auto val = fromJSON!MemberType(keyValPairs[key]); // extract value from json
+              mixin("this." ~ member ~ "= val;");               // assign value to member
             }
             else {
               enforce(isOptional!(this, member),
@@ -148,31 +148,31 @@ unittest {
 
   auto j0 = toJSON(true);
   assert(j0.type == JSON_TYPE.TRUE);
-  assert(extract!bool(j0));
+  assert(fromJSON!bool(j0));
 
   auto j1 = toJSON("bork");
   assert(j1.type == JSON_TYPE.STRING && j1.str == "bork");
-  assert(extract!string(j1) == "bork");
+  assert(fromJSON!string(j1) == "bork");
 
   auto j2 = toJSON(4.1);
   assert(j2.type == JSON_TYPE.FLOAT && j2.floating.approxEqual(4.1));
-  assert(extract!float(j2).approxEqual(4.1));
-  assert(extract!double(j2).approxEqual(4.1));
-  assert(extract!real(j2).approxEqual(4.1));
+  assert(fromJSON!float(j2).approxEqual(4.1));
+  assert(fromJSON!double(j2).approxEqual(4.1));
+  assert(fromJSON!real(j2).approxEqual(4.1));
 
   auto j3 = toJSON(41);
   assert(j3.type == JSON_TYPE.INTEGER && j3.integer == 41);
-  assert(extract!int(j3) == 41);
-  assert(extract!long(j3) == 41);
+  assert(fromJSON!int(j3) == 41);
+  assert(fromJSON!long(j3) == 41);
 
   auto j4 = toJSON(41u);
   assert(j4.type == JSON_TYPE.UINTEGER && j4.uinteger == 41u);
-  assert(extract!uint(j4) == 41u);
-  assert(extract!ulong(j4) == 41u);
+  assert(fromJSON!uint(j4) == 41u);
+  assert(fromJSON!ulong(j4) == 41u);
 
   auto jenum = toJSON!Category(Category.one);
   assert(jenum.type == JSON_TYPE.STRING);
-  assert(jenum.extract!Category == Category.one);
+  assert(jenum.fromJSON!Category == Category.one);
 
   // homogenous json array
   auto j5 = toJSON([9, 8, 7, 6]);
@@ -181,7 +181,7 @@ unittest {
   assert(j5.array[2].integer == 7);
   assert(j5.array[3].integer == 6);
   assert(j5.type == JSON_TYPE.ARRAY);
-  assert(extract!(int[])(j5) == [9, 8, 7, 6]);
+  assert(fromJSON!(int[])(j5) == [9, 8, 7, 6]);
 
   // heterogenous json array
   auto j6 = toJSON("sammich", 1.5, 2, 3u);
@@ -197,8 +197,8 @@ unittest {
   assert(j7.object["a"].integer == 1);
   assert(j7.object["b"].integer == 2);
   assert(j7.object["c"].integer == 3);
-  assert(extract!(int[string])(j7) == aa);
-  assert(j7.extract!int("b") == 2);
+  assert(fromJSON!(int[string])(j7) == aa);
+  assert(j7.fromJSON!int("b") == 2);
 }
 
 /// object serialization -- fields only
@@ -242,7 +242,7 @@ unittest {
   assert("dontJsonMe" !in json.object);
 
   // reconstruct from json
-  auto r = extract!Fields(json);
+  auto r = fromJSON!Fields(json);
   assert(r.i == 1);
   assert(r.f.approxEqual(4.2));
   assert(r.s == "tally ho!");
@@ -258,7 +258,7 @@ unittest {
   // serialize array of user objects to json
   auto jsonArray = toJSON!(Fields[])(a);
   // reconstruct from json
-  assert(extract!(Fields[])(jsonArray) == a);
+  assert(fromJSON!(Fields[])(jsonArray) == a);
 }
 
 /// object serialization with properties
@@ -303,7 +303,7 @@ unittest {
   assert(json.object["_s"].str == "tally ho!");
   assert("dontJsonMe" !in json.object);
 
-  auto r = extract!Props(json);
+  auto r = fromJSON!Props(json);
   assert(r.i == 1);
   assert(r._f.approxEqual(4.2 - 3.0 + 5.0)); // property accessor should add 5
   assert(r._s == "tally ho!");
@@ -348,14 +348,14 @@ unittest {
   assert(json.object["_i"].integer == 12);
   assert(json.object["_s"].str == "something");
   assert(json.object["_f"].floating.approxEqual(10.2));
-  auto c2 = extract!Custom(json);
+  auto c2 = fromJSON!Custom(json);
   assert(c2._i == 12);
   assert(c2._s == "something jsonized");
   assert(c2._f.approxEqual(10.2));
 
   // test alternate ctor
   json = parseJSON(`{"d" : 5}`);
-  c = json.extract!Custom;
+  c = json.fromJSON!Custom;
   assert(c._f.approxEqual(5) && c._i == 5 && c._s == "5");
 }
 
@@ -389,7 +389,7 @@ unittest {
   assert(json.object["s"].str == "bogus");
   assert("dontJsonMe" !in json.object);
 
-  auto r = extract!S(json);
+  auto r = fromJSON!S(json);
   assert(r.x == 5);
   assert(r.f.approxEqual(4.2));
   assert(r.s == "bogus");
@@ -448,14 +448,14 @@ unittest {
   c.f = 2.1;
 
   auto json = c.toJSON;
-  assert(json.extract!int("x") == 5);
-  assert(json.extract!string("s") == "hello");
-  assert(json.extract!float("f").approxEqual(2.1));
+  assert(json.fromJSON!int("x") == 5);
+  assert(json.fromJSON!string("s") == "hello");
+  assert(json.fromJSON!float("f").approxEqual(2.1));
 
-  auto child = json.extract!Child;
+  auto child = json.fromJSON!Child;
   assert(child.x == 5 && child.s == "hello" && child.f.approxEqual(2.1));
 
-  auto parent = json.extract!Parent;
+  auto parent = json.fromJSON!Parent;
   assert(parent.x == 5 && parent.s == "hello");
 }
 
@@ -499,14 +499,14 @@ unittest {
   auto c = new Child(5, "hello", 2.1);
 
   auto json = c.toJSON;
-  assert(json.extract!int("x") == 5);
-  assert(json.extract!string("s") == "hello");
-  assert(json.extract!float("f").approxEqual(2.1));
+  assert(json.fromJSON!int("x") == 5);
+  assert(json.fromJSON!string("s") == "hello");
+  assert(json.fromJSON!float("f").approxEqual(2.1));
 
-  auto child = json.extract!Child;
+  auto child = json.fromJSON!Child;
   assert(child.x == 5 && child.s == "hello" && child.f.approxEqual(2.1));
 
-  auto parent = json.extract!Parent;
+  auto parent = json.fromJSON!Parent;
   assert(parent.x == 5 && parent.s == "hello");
 }
 
@@ -526,10 +526,10 @@ unittest {
 
   auto json = b.toJSON;
 
-  assert(json.extract!int("x") == 5);
-  assert(json.extract!string("s") == "blah");
+  assert(json.fromJSON!int("x") == 5);
+  assert(json.fromJSON!string("s") == "blah");
 
-  auto reconstruct = json.extract!Bleh;
+  auto reconstruct = json.fromJSON!Bleh;
   assert(reconstruct._x == b._x && reconstruct._s == b._s);
 }
 
@@ -548,8 +548,8 @@ unittest {
     }
   }
 
-  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.extract!S);
-  assertThrown(`{ "i": 5 }`.parseJSON.extract!S);
+  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!S);
+  assertThrown(`{ "i": 5 }`.parseJSON.fromJSON!S);
 }
 
 /// `JsonizeIgnoreExtraKeys` behavior
@@ -571,12 +571,12 @@ unittest {
   }
 
   // no extra fields, neither should throw
-  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.extract!NoCares);
-  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.extract!VeryStrict);
+  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!NoCares);
+  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!VeryStrict);
 
   // extra field "s", strict should throw
-  assertNotThrown(`{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.extract!NoCares);
-  assertThrown(`{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.extract!VeryStrict);
+  assertNotThrown(`{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.fromJSON!NoCares);
+  assertThrown(`{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.fromJSON!VeryStrict);
 }
 
 // members that potentially conflict with variables used in the mixin
@@ -588,7 +588,7 @@ unittest {
 
   Foo orig = Foo(3);
   auto serialized   = orig.toJSON;
-  auto deserialized = serialized.extract!Foo;
+  auto deserialized = serialized.fromJSON!Foo;
 
   assert(deserialized.val == orig.val);
 }
@@ -635,7 +635,7 @@ unittest {
       "c": 2,
       "b": "hello"
     }
-  ]`.format(classKeyA, classKeyB).parseJSON.extract!(TestComponent[]);
+  ]`.format(classKeyA, classKeyB).parseJSON.fromJSON!(TestComponent[]);
 
   auto a = cast(TestCompA) data[0];
   auto b = cast(TestCompB) data[1];
