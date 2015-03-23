@@ -10,7 +10,7 @@ import std.algorithm;
 import std.exception;
 import std.typetuple;
 import std.typecons : staticIota;
-import jsonizer.jsonize;
+import jsonizer.internal.attribute;
 
 /// json member used to map a json object to a D type
 enum jsonizeClassKeyword = "class";

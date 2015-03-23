@@ -10,7 +10,7 @@ import std.algorithm;
 import std.exception;
 import std.typetuple;
 import std.typecons : staticIota;
-import jsonizer.jsonize;
+import jsonizer.internal.attribute;
 
 // Primitive Type Conversions -----------------------------------------------------------
 /// convert a bool to a JSONValue
