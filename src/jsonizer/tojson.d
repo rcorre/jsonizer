@@ -1,5 +1,5 @@
 /// `toJSON!T` converts a instance of `T` to a `JSONValue`
-module internal.tojson;
+module jsonizer.tojson;
 
 import std.json;
 import std.conv;
@@ -10,7 +10,7 @@ import std.algorithm;
 import std.exception;
 import std.typetuple;
 import std.typecons : staticIota;
-import internal.attribute;
+import jsonizer.jsonize;
 
 // Primitive Type Conversions -----------------------------------------------------------
 /// convert a bool to a JSONValue

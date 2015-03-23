@@ -1,10 +1,10 @@
 /// helpers for working with files containing JSON data
-module internal.io;
+module jsonizer.helpers;
 
 import std.json;
 import std.file;
-import internal.tojson;
-import internal.fromjson;
+import jsonizer.tojson;
+import jsonizer.fromjson;
 
 /// Read a json-constructable object from a file.
 /// Params:

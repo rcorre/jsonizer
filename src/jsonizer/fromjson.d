@@ -1,5 +1,5 @@
 /// `fromJSON!T` converts a `JSONValue` to an instance of `T`
-module internal.fromjson;
+module jsonizer.fromjson;
 
 import std.json;
 import std.conv;
@@ -10,7 +10,7 @@ import std.algorithm;
 import std.exception;
 import std.typetuple;
 import std.typecons : staticIota;
-import internal.attribute;
+import jsonizer.jsonize;
 
 /// json member used to map a json object to a D type
 enum jsonizeClassKeyword = "class";

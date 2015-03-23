@@ -3,7 +3,7 @@ module sprite;
 import std.string;
 import geometry;
 import component;
-import jsonizer;
+import jsonizer.all;
 
 class Sprite : Component {
   mixin JsonizeMe;

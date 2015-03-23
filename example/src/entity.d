@@ -2,7 +2,7 @@ module entity;
 
 import geometry;
 import component;
-import jsonizer;
+import jsonizer.all;
 
 class Entity {
   mixin JsonizeMe;

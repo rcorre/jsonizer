@@ -3,7 +3,7 @@ module animator;
 import std.string;
 import geometry;
 import component;
-import jsonizer;
+import jsonizer.all;
 
 class Animator : Component {
   mixin JsonizeMe;
