@@ -10,10 +10,26 @@ To use jsonizer, the main components you ened to be aware of are
 the methods `fromJSON!T` and `toJSON`, the attribute `@jsonize`, and the mixin
 template `JsonizeMe`.
 
+## Overview
+Jsonizer consists of the following modules:
+
+- `jsonizer.fromjson`
+  - parse a `T` from a `JSONValue` using `fromJSON!T`
+  - parse a `T` from a json file using `readJSON!T`
+- `jsonizer.tojson`
+  - convert a `T` to a `JSONValue` using `toJSON!T`
+  - write a `T` to a json file using `writeJSON!T`
+- `jsonizer.jsonize`
+  - mixin `JsonizeMe` to enable json serialization for a user-defined type
+  - use `@jsonize` to mark members for serialization
+- `jsonizer.all`
+  - imports `jsonizer.tojson`, `jsonizer.fromjson`, and `jsonizer.jsonize`
+
 ## fromJSON!T
 `fromJSON!T` converts a `JSONValue` into an object of type `T`.
 
 ```d
+import jsonizer.fromjson;
 JSONValue json; // lets assume this has some data in it
 int i             = json.fromJSON!int;
 MyEnum e          = json.fromJSON!MyEnum;
