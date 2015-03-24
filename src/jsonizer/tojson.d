@@ -1,4 +1,11 @@
-/// `toJSON!T` converts a instance of `T` to a `JSONValue`
+/**
+  * Contains functions for serializing JSON data.
+  *
+  * Authors: <a href="https://github.com/rcorre">rcorre</a>
+	* License: <a href="http://opensource.org/licenses/MIT">MIT</a>
+	* Copyright: Copyright © 2015, rcorre
+  * Date: 3/23/15
+  */
 module jsonizer.tojson;
 
 import std.json;

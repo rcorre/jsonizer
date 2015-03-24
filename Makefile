@@ -13,8 +13,9 @@ release:
 
 test:
 	@dub test $(SETCOMPILER) --quiet
-	@cd example
-	@dub test
+
+docs:
+	@dub build $(SETCOMPILER) --build=ddox --quiet
 
 clean:
 	@dub clean

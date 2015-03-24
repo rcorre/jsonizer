@@ -1,4 +1,11 @@
-/// `fromJSON!T` converts a `JSONValue` to an instance of `T`
+/**
+  * Contains functions for deserializing JSON data.
+  *
+  * Authors: <a href="https://github.com/rcorre">rcorre</a>
+	* License: <a href="http://opensource.org/licenses/MIT">MIT</a>
+	* Copyright: Copyright © 2015, rcorre
+  * Date: 3/23/15
+  */
 module jsonizer.fromjson;
 
 import std.json;
@@ -22,6 +29,7 @@ private void enforceJsonType(T)(JSONValue json, JSON_TYPE[] expected ...) {
 }
 
 deprecated("use fromJSON instead") {
+  /// Deprecated: use `fromJSON` instead.
   T extract(T)(JSONValue json) {
     return json.fromJSON!T;
   }
