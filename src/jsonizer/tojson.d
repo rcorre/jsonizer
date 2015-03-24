@@ -2,15 +2,11 @@
 module jsonizer.tojson;
 
 import std.json;
-import std.conv;
-import std.range;
 import std.traits;
-import std.string;
-import std.algorithm;
-import std.exception;
-import std.typetuple;
+import std.conv : to;
+import std.file : write;
+import std.exception : enforce;
 import std.typecons : staticIota;
-import jsonizer.internal.attribute;
 
 // Primitive Type Conversions -----------------------------------------------------------
 /// convert a bool to a JSONValue
@@ -90,3 +86,11 @@ JSONValue toJSON(T)(T obj) if (!isBuiltinType!T) {
   return obj.convertToJSON();
 }
 
+/// Write a jsonizeable object to a file.
+/// Params:
+///   path = filesystem path to write json to
+///   obj  = object to convert to json and write to path
+void writeJSON(T)(string path, T obj) {
+  auto json = toJSON!T(obj);
+  path.write(json.toPrettyString);
+}

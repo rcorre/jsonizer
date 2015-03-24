@@ -14,7 +14,6 @@ import std.typecons : staticIota;
 
 import jsonizer.tojson;
 import jsonizer.fromjson;
-import jsonizer.helpers;
 
 public import jsonizer.internal.attribute;
 
@@ -56,6 +55,7 @@ bool isOptional(alias obj, string memberName)() {
 /// Params:
 ///   ignoreMissing = whether to silently ignore json keys that do not map to serialized members
 mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
+  static import std.json;
   alias T = typeof(this);
 
   // Nested mixins -- these generate private functions to perform serialization/deserialization
@@ -65,6 +65,7 @@ mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
       // scoped imports include necessary functions without avoid polluting class namespace
       import std.typetuple : Erase;
       import jsonizer.fromjson;
+      import jsonizer.jsonize : jsonizeKey, isOptional, JsonizeIgnoreExtraKeys;
       // TODO: look into moving this up a level and not generating _fromJSON at all.
       static if (!hasCustomJsonCtor!T) {
         // track fields found to detect keys that do not map to serialized fields
@@ -100,10 +101,10 @@ mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
 
   private mixin template MakeSerializer() {
     private auto _toJSON() {
-      import std.json : JSONValue;
       import std.typetuple : Erase;
       import jsonizer.tojson;
-      JSONValue[string] keyValPairs;
+      import jsonizer.jsonize : jsonizeKey;
+      std.json.JSONValue[string] keyValPairs;
       // look for members marked with @jsonize, ignore __ctor
       foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
         enum key = jsonizeKey!(this, member); // find @jsonize, deduce member key
@@ -113,7 +114,7 @@ mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
         }
       }
       // construct the json object
-      JSONValue json;
+      std.json.JSONValue json;
       json.object = keyValPairs;
       return json;
     }

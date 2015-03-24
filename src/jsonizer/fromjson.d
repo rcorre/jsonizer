@@ -3,6 +3,7 @@ module jsonizer.fromjson;
 
 import std.json;
 import std.conv;
+import std.file;
 import std.range;
 import std.traits;
 import std.string;
@@ -110,6 +111,23 @@ T fromJSON(T)(JSONValue json, string key) {
 T fromJSON(T)(JSONValue json, string key, T defaultVal) {
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   return (key in json.object) ? fromJSON!T(json.object[key]) : defaultVal;
+}
+
+/// Read a json-constructable object from a file.
+/// Params:
+///   path = filesystem path to json file
+/// Returns: object parsed from json file
+T readJSON(T)(string path) {
+  auto json = parseJSON(readText(path));
+  return fromJSON!T(json);
+}
+
+/// Read contents of a json file directly into a JSONValue.
+/// Params:
+///   path = filesystem path to json file
+/// Returns: a `JSONValue` parsed from the file
+auto readJSON(string path) {
+  return parseJSON(readText(path));
 }
 
 /// extract a user-defined class or struct from a JSONValue
