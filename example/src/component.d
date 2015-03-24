@@ -1,6 +1,6 @@
 module component;
 
-import jsonizer;
+import jsonizer.jsonize : JsonizeMe;
 
 abstract class Component {
   mixin JsonizeMe;

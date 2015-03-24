@@ -1,6 +1,6 @@
 module geometry;
 
-import jsonizer;
+import jsonizer.all;
 
 struct Vector {
   mixin JsonizeMe;
