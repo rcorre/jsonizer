@@ -70,10 +70,6 @@ The above could be deserialized by calling `fromJSON!S` from a json object like:
 { "x": 5, "f": 1.2 }
 ```
 
-This is a good place to note that `jsonize` will not error if a member was not
-specified in the json object, nor would it error if some extraneous key was
-present.
-
 Your struct could be converted back into a `JSONValue` by calling `toJSON` on an
 instance of it.
 
