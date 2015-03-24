@@ -1,6 +1,7 @@
 module geometry;
 
-import jsonizer.all;
+// try importing the entire jsonizer package
+import jsonizer;
 
 struct Vector {
   mixin JsonizeMe;

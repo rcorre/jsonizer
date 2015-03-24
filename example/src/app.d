@@ -4,7 +4,7 @@ import entity;
 import component;
 import sprite;
 import animator;
-import jsonizer.helpers : readJSON;
+import jsonizer.fromjson : readJSON;
 
 private enum fileName = "entities.json";
 
