@@ -18,7 +18,10 @@ import jsonizer.helpers;
 
 public import jsonizer.internal.attribute;
 
-private string jsonizeKey(alias obj, string memberName)() {
+// if member is marked with @jsonize("someName"), returns "someName".
+// if member is marked with @jsonize, returns the name of the member.
+// if member is not marked with @jsonize, returns null
+string jsonizeKey(alias obj, string memberName)() {
   foreach(attr ; __traits(getAttributes, mixin("obj." ~ memberName))) {
     static if (is(attr == jsonize)) { // @jsonize someMember;
       return memberName;          // use member name as-is
@@ -30,7 +33,8 @@ private string jsonizeKey(alias obj, string memberName)() {
   return null;
 }
 
-private bool isOptional(alias obj, string memberName)() {
+// return true if member is marked with @jsonize(JsonizeOptional.yes).
+bool isOptional(alias obj, string memberName)() {
   // start with most nested attribute and move up, looking for a JsonizeOptional tag
   foreach_reverse(attr ; __traits(getAttributes, mixin("obj." ~ memberName))) {
     static if (is(typeof(attr) == jsonize)) {
@@ -52,17 +56,15 @@ private bool isOptional(alias obj, string memberName)() {
 /// Params:
 ///   ignoreMissing = whether to silently ignore json keys that do not map to serialized members
 mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
-  import std.json      : JSONValue;
-  import std.typetuple : Erase;
-  import std.traits    : BaseClassesTuple;
-  import std.exception : enforce;
-
   alias T = typeof(this);
 
   // Nested mixins -- these generate private functions to perform serialization/deserialization
   private mixin template MakeDeserializer() {
     alias T = typeof(this);
-    private void _fromJSON(JSONValue json) {
+    private void _fromJSON(std.json.JSONValue json) {
+      // scoped imports include necessary functions without avoid polluting class namespace
+      import std.typetuple : Erase;
+      import jsonizer.fromjson;
       // TODO: look into moving this up a level and not generating _fromJSON at all.
       static if (!hasCustomJsonCtor!T) {
         // track fields found to detect keys that do not map to serialized fields
@@ -79,7 +81,7 @@ mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
               mixin("this." ~ member ~ "= val;");               // assign value to member
             }
             else {
-              enforce(isOptional!(this, member),
+              std.exception.enforce(isOptional!(this, member),
                   "required key '" ~ key ~ "' not found in json");
             }
           }
@@ -89,7 +91,7 @@ mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
         static if (ignoreMissing == JsonizeIgnoreExtraKeys.no) {
           // TODO: when jsonize exceptions are implemented,
           // include names of missing fields in exception message
-          enforce(fieldsFound == keyValPairs.keys.length,
+          std.exception.enforce(fieldsFound == keyValPairs.keys.length,
               "key in json object does not map to a serialized field");
         }
       }
@@ -97,7 +99,10 @@ mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
   }
 
   private mixin template MakeSerializer() {
-    private JSONValue _toJSON() {
+    private auto _toJSON() {
+      import std.json : JSONValue;
+      import std.typetuple : Erase;
+      import jsonizer.tojson;
       JSONValue[string] keyValPairs;
       // look for members marked with @jsonize, ignore __ctor
       foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
@@ -121,22 +126,22 @@ mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
   // expose the methods generated above by wrapping them in public methods.
   // apply the overload attribute to the public methods if already implemented in base class.
   static if (is(T == class) &&
-      __traits(hasMember, BaseClassesTuple!T[0], "populateFromJSON"))
+      __traits(hasMember, std.traits.BaseClassesTuple!T[0], "populateFromJSON"))
   {
-    override void populateFromJSON(JSONValue json) {
+    override void populateFromJSON(std.json.JSONValue json) {
       GeneratedDeserializer._fromJSON(json);
     }
 
-    override JSONValue convertToJSON() {
+    override std.json.JSONValue convertToJSON() {
       return GeneratedSerializer._toJSON();
     }
   }
   else {
-    void populateFromJSON(JSONValue json) {
+    void populateFromJSON(std.json.JSONValue json) {
       GeneratedDeserializer._fromJSON(json);
     }
 
-    JSONValue convertToJSON() {
+    std.json.JSONValue convertToJSON() {
       return GeneratedSerializer._toJSON();
     }
   }
