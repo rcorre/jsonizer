@@ -6,7 +6,7 @@
 	* Copyright: Copyright © 2015, rcorre
   * Date: 3/23/15
   */
-module jsonizer.all;
+module jsonizer;
 
 public import jsonizer.tojson;
 public import jsonizer.fromjson;
