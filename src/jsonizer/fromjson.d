@@ -18,14 +18,26 @@ import std.algorithm;
 import std.exception;
 import std.typetuple;
 import std.typecons : staticIota, Tuple;
+import jsonizer.exceptions : JsonizeTypeException;
 import jsonizer.internal.attribute;
 
 /// json member used to map a json object to a D type
 enum jsonizeClassKeyword = "class";
 
 private void enforceJsonType(T)(JSONValue json, JSON_TYPE[] expected ...) {
-  enum fmt = "fromJSON!%s expected json type to be one of %s but got json type %s. json input: %s";
-  enforce(expected.canFind(json.type), format(fmt, typeid(T), expected, json.type, json));
+  if (!expected.canFind(json.type)) {
+    throw new JsonizeTypeException(typeid(T), json, expected);
+  }
+}
+
+unittest {
+  import std.exception : assertThrown, assertNotThrown;
+  with (JSON_TYPE) {
+    assertThrown!JsonizeTypeException(enforceJsonType!int(JSONValue("hi"), INTEGER, UINTEGER));
+    assertThrown!JsonizeTypeException(enforceJsonType!(bool[string])(JSONValue([ 5 ]), OBJECT));
+    assertNotThrown(enforceJsonType!int(JSONValue(5), INTEGER, UINTEGER));
+    assertNotThrown(enforceJsonType!(bool[string])(JSONValue(["key": true]), OBJECT));
+  }
 }
 
 deprecated("use fromJSON instead") {
