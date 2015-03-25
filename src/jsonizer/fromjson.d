@@ -17,7 +17,7 @@ import std.string;
 import std.algorithm;
 import std.exception;
 import std.typetuple;
-import std.typecons : staticIota;
+import std.typecons : staticIota, Tuple;
 import jsonizer.internal.attribute;
 
 /// json member used to map a json object to a D type
