@@ -57,11 +57,24 @@ bool isOptional(alias obj, string memberName)() {
   return false;
 }
 
+template isJsonized(alias member) {
+  static bool helper() {
+    foreach(attr ; __traits(getAttributes, member)) {
+      static if (is(attr == jsonize) || is(typeof(attr) == jsonize)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  enum isJsonized = helper();
+}
+
 /// Generate json (de)serialization methods for the type this is mixed in to.
 /// The methods `_toJSON` and `_fromJSON` are generated.
 /// Params:
-///   ignoreMissing = whether to silently ignore json keys that do not map to serialized members
-mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
+///   ignoreExtra = whether to silently ignore json keys that do not map to serialized members
+mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
   static import std.json;
   alias T = typeof(this);
 
@@ -70,17 +83,23 @@ mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
     alias T = typeof(this);
     private void _fromJSON(std.json.JSONValue json) {
       // scoped imports include necessary functions without avoid polluting class namespace
+      import std.algorithm : filter;
       import std.typetuple : Erase;
       import jsonizer.fromjson;
       import jsonizer.jsonize : jsonizeKey, isOptional, JsonizeIgnoreExtraKeys;
+      import jsonizer.exceptions : JsonizeMismatchException;
+
       // TODO: look into moving this up a level and not generating _fromJSON at all.
       static if (!hasCustomJsonCtor!T) {
         // track fields found to detect keys that do not map to serialized fields
         int fieldsFound = 0;
+        string[] missingKeys;
         auto keyValPairs = json.object;
+
         // check if each member is actually a member and is marked with the @jsonize attribute
         foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
           enum key = jsonizeKey!(this, member);              // find @jsonize, deduce member key
+
           static if (key !is null) {
             if (key in keyValPairs) {
               ++fieldsFound;
@@ -89,18 +108,37 @@ mixin template JsonizeMe(alias ignoreMissing = JsonizeIgnoreExtraKeys.yes) {
               mixin("this." ~ member ~ "= val;");               // assign value to member
             }
             else {
-              std.exception.enforce(isOptional!(this, member),
-                  "required key '" ~ key ~ "' not found in json");
+              static if (!isOptional!(this, member)) {
+                missingKeys ~= key;
+              }
             }
           }
         }
 
-        // perform check for excess fields if requested
-        static if (ignoreMissing == JsonizeIgnoreExtraKeys.no) {
-          // TODO: when jsonize exceptions are implemented,
-          // include names of missing fields in exception message
-          std.exception.enforce(fieldsFound == keyValPairs.keys.length,
-              "key in json object does not map to a serialized field");
+        bool extraKeyFailure = false; // should we fail due to extra keys?
+        static if (ignoreExtra == JsonizeIgnoreExtraKeys.no) {
+          extraKeyFailure = (fieldsFound != keyValPairs.keys.length);
+        }
+
+        // check for failure condition
+        // TODO: clean up with template to get all @jsonized members
+        if (extraKeyFailure || missingKeys.length > 0) {
+          string[] extraKeys;
+          foreach(jsonKey ; json.object.byKey) {
+            bool match = false;
+            foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
+              enum memberKey = jsonizeKey!(this, member);
+              if (memberKey == jsonKey) {
+                match = true;
+                break;
+              }
+            }
+            if (!match) {
+              extraKeys ~= jsonKey;
+            }
+          }
+
+          throw new JsonizeMismatchException(typeid(T), extraKeys, missingKeys);
         }
       }
     }
@@ -549,25 +587,34 @@ unittest {
 
 /// required/optional members
 unittest {
-  import std.exception : assertThrown, assertNotThrown;
+  import std.exception : collectException, assertNotThrown;
+  import jsonizer.exceptions : JsonizeMismatchException;
   static struct S {
     mixin JsonizeMe;
 
     @jsonize {
-      int i;
+      int i; // i is non-optional (default)
       @jsonize(JsonizeOptional.yes) {
         @jsonize("_s") string s; // s is optional
-        @jsonize(JsonizeOptional.no) float f; // f is not optional (override outer attribute)
+        @jsonize(JsonizeOptional.no) float f; // f is non-optional (overrides outer attribute)
       }
     }
   }
 
   assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!S);
-  assertThrown(`{ "i": 5 }`.parseJSON.fromJSON!S);
+  auto ex = collectException!JsonizeMismatchException(`{ "i": 5 }`.parseJSON.fromJSON!S);
+
+  assert(ex !is null, "missing non-optional field 'f' should trigger JsonizeMismatchException");
+  assert(ex.targetType == typeid(S));
+  assert(ex.missingKeys == [ "f" ]);
+  assert(ex.extraKeys == [ ]);
 }
 
 /// `JsonizeIgnoreExtraKeys` behavior
 unittest {
+  import std.exception : collectException, assertNotThrown;
+  import jsonizer.exceptions : JsonizeMismatchException;
+
   static struct NoCares {
     mixin JsonizeMe;
     @jsonize {
@@ -588,9 +635,17 @@ unittest {
   assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!NoCares);
   assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!VeryStrict);
 
-  // extra field "s", strict should throw
+  // extra field "s"
+  // `NoCares` ignores extra keys, so it will not throw
   assertNotThrown(`{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.fromJSON!NoCares);
-  assertThrown(`{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.fromJSON!VeryStrict);
+  // `VeryStrict` does not ignore extra keys
+  auto ex = collectException!JsonizeMismatchException(
+      `{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.fromJSON!VeryStrict);
+
+  assert(ex !is null, "extra field 's' should trigger JsonizeMismatchException");
+  assert(ex.targetType == typeid(VeryStrict));
+  assert(ex.missingKeys == [ ]);
+  assert(ex.extraKeys == [ "s" ]);
 }
 
 // members that potentially conflict with variables used in the mixin
