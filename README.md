@@ -37,7 +37,7 @@ MyStruct[] s      = json.fromJSON!(MyStruct[]);
 MyClass[string] c = json.fromJSON!(MyClass[string]);
 ```
 
-`fromJSON!T` will fail (with `enforce`) if the json object's type is not
+`fromJSON!T` will fail by throwing a `JsonizeTypeException` if the json object's type is not
 something it knows how to convert to `T`.
 
 For primitive types, `fromJSON` leans on the side of flexibility -- for example,
@@ -123,6 +123,15 @@ class MyClass {
 In the above example `json.fromJSON!MyClass` will fail if it does not find a key named "i" in the
 json object, but will silently ignore the abscence of a key "f".
 
+Missing non-optional members trigger a `JsonizeMismatchException`, which contains a list of the
+missing keys in `missingKeys`:
+
+```d
+auto ex = collectException!JsonizeMismatchException(`{ "q": 5.0 }`.parseJSON.fromJSON!MyClass);
+
+assert(ex.missingKeys == [ "i" ]);
+```
+
 The way @jsonize takes parameters is rather flexible. While I can't condone making your class look
 like the below example, it demonstrates the flexibility of @jsonize:
 
@@ -141,8 +150,9 @@ As the above shows, parameters may be passed in any order to @jsonize.
 ### Extra Members
 If you would like to ensure that every entry in a json object is being
 deserialized, you can pass `JsonizeIgnoreExtraKeys.no` to `JsonizeMe`.
-In the example below, `fromJSON!S(jobject)` will `enforce` that no fields other
-than `s` and `i` exist in `jobject`.
+In the example below, `fromJSON!S(jobject)` will throw a
+`JsonizeMismatchException` than if fields other than `s` and `i` exist in
+`jobject`.
 
 ```d
 struct S {
@@ -150,6 +160,16 @@ struct S {
   string s;
   int i;
 }
+```
+
+When a `JsonizeMismatchException` is caught, you can inspect the extra fields by
+looking at `extraKeys`:
+
+```d
+auto ex = collectException!JsonizeMismatchException(
+    `{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.fromJSON!S);
+
+assert(ex.extraKeys == [ "f" ]);
 ```
 
 ## Constructors
