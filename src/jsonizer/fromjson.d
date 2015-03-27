@@ -47,7 +47,7 @@ deprecated("use fromJSON instead") {
   }
 }
 
-/// extract a boolean from a json value
+/// Extract a boolean from a json value.
 T fromJSON(T : bool)(JSONValue json) {
   if (json.type == JSON_TYPE.TRUE) {
     return true;
@@ -59,14 +59,25 @@ T fromJSON(T : bool)(JSONValue json) {
   assert(0);
 }
 
-/// extract a string type from a json value
+/// Extract booleans from json values.
+unittest {
+  assert(JSONValue(false).fromJSON!bool == false);
+  assert(JSONValue(true).fromJSON!bool == true);
+}
+
+/// Extract a string type from a json value.
 T fromJSON(T : string)(JSONValue json) {
   if (json.type == JSON_TYPE.NULL) { return null; }
   enforceJsonType!T(json, JSON_TYPE.STRING);
   return cast(T) json.str;
 }
 
-/// extract a numeric type from a json value
+/// Extract a string from a json string.
+unittest {
+  assert(JSONValue("asdf").fromJSON!string == "asdf");
+}
+
+/// Extract a numeric type from a json value.
 T fromJSON(T : real)(JSONValue json) if (!is(T == enum)) {
   switch(json.type) {
     case JSON_TYPE.FLOAT:
@@ -84,13 +95,29 @@ T fromJSON(T : real)(JSONValue json) if (!is(T == enum)) {
   assert(0, "should not be reacheable");
 }
 
-/// extract an enumerated type from a json value
+/// Extract various numeric types.
+unittest {
+  assert(JSONValue(1).fromJSON!int      == 1);
+  assert(JSONValue(2u).fromJSON!uint    == 2u);
+  assert(JSONValue(3.0).fromJSON!double == 3.0);
+
+  // fromJSON accepts numeric strings when a numeric conversion is requested
+  assert(JSONValue("4").fromJSON!long   == 4L);
+}
+
+/// Extract an enumerated type from a json value.
 T fromJSON(T)(JSONValue json) if (is(T == enum)) {
   enforceJsonType!T(json, JSON_TYPE.STRING);
   return to!T(json.str);
 }
 
-/// extract an array from a JSONValue
+/// Convert a json string into an enum value.
+unittest {
+  enum Category { one, two }
+  assert(JSONValue("one").fromJSON!Category == Category.one);
+}
+
+/// Extract an array from a JSONValue.
 T fromJSON(T)(JSONValue json) if (isArray!T && !isSomeString!(T)) {
   if (json.type == JSON_TYPE.NULL) { return T.init; }
   enforceJsonType!T(json, JSON_TYPE.ARRAY);
@@ -107,7 +134,13 @@ T fromJSON(T)(JSONValue json) if (isArray!T && !isSomeString!(T)) {
   return vals;
 }
 
-/// extract an associative array from a JSONValue
+/// Convert a json array into an array.
+unittest {
+  auto a = [ 1, 2, 3 ];
+  assert(JSONValue(a).fromJSON!(int[]) == a);
+}
+
+/// Extract an associative array from a JSONValue.
 T fromJSON(T)(JSONValue json) if (isAssociativeArray!T) {
   assert(is(KeyType!T : string), "toJSON requires string keys for associative array");
   if (json.type == JSON_TYPE.NULL) { return null; }
@@ -120,17 +153,38 @@ T fromJSON(T)(JSONValue json) if (isAssociativeArray!T) {
   return map;
 }
 
-/// extract a value from a json object by its key
+/// Convert a json object to an associative array.
+unittest {
+  auto aa = ["a": 1, "b": 2];
+  assert(JSONValue(aa).fromJSON!(int[string]) == aa);
+}
+
+/// Extract a value from a json object by its key.
 T fromJSON(T)(JSONValue json, string key) {
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   enforce(key in json.object, "tried to extract non-existent key " ~ key ~ " from JSONValue");
   return fromJSON!T(json.object[key]);
 }
 
-/// extract a value from a json object by its key, return defaultVal if key not found
+unittest {
+  auto aa = ["a": 1, "b": 2];
+  auto json = JSONValue(aa);
+  assert(json.fromJSON!int("a") == 1);
+  assert(json.fromJSON!ulong("b") == 2L);
+}
+
+/// Extract a value from a json object by its key, return `defaultVal` if key not found.
 T fromJSON(T)(JSONValue json, string key, T defaultVal) {
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   return (key in json.object) ? fromJSON!T(json.object[key]) : defaultVal;
+}
+
+/// Substitute default values when keys aren't present.
+unittest {
+  auto aa = ["a": 1, "b": 2];
+  auto json = JSONValue(aa);
+  assert(json.fromJSON!int("a", 7) == 1);
+  assert(json.fromJSON!int("c", 7) == 7);
 }
 
 /// Read a json-constructable object from a file.
@@ -142,6 +196,21 @@ T readJSON(T)(string path) {
   return fromJSON!T(json);
 }
 
+/// Read a json file directly into a specified D type.
+unittest {
+  import std.path : buildPath;
+  import std.uuid : randomUUID;
+  import std.file : tempDir, write, mkdirRecurse;
+
+  auto dir = buildPath(tempDir(), "jsonizer_readjson_test");
+  mkdirRecurse(dir);
+  auto file = buildPath(dir, randomUUID().toString);
+
+  file.write("[1, 2, 3]");
+
+  assert(file.readJSON!(int[]) == [ 1, 2, 3 ]);
+}
+
 /// Read contents of a json file directly into a JSONValue.
 /// Params:
 ///   path = filesystem path to json file
@@ -150,7 +219,27 @@ auto readJSON(string path) {
   return parseJSON(readText(path));
 }
 
-/// extract a user-defined class or struct from a JSONValue
+/// Read a json file into a JSONValue.
+unittest {
+  import std.path : buildPath;
+  import std.uuid : randomUUID;
+  import std.file : tempDir, write, mkdirRecurse;
+
+  auto dir = buildPath(tempDir(), "jsonizer_readjson_test");
+  mkdirRecurse(dir);
+  auto file = buildPath(dir, randomUUID().toString);
+
+  file.write("[1, 2, 3]");
+
+  auto json = file.readJSON();
+
+  assert(json.array[0].integer == 1);
+  assert(json.array[1].integer == 2);
+  assert(json.array[2].integer == 3);
+}
+
+/// Extract a user-defined class or struct from a JSONValue.
+/// See `jsonizer.jsonize` for info on how to mark your own types for serialization.
 T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
   static if (is(T == class)) {
     if (json.type == JSON_TYPE.NULL) { return null; }
@@ -190,7 +279,34 @@ T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
   assert(0, T.stringof ~ " must have a no-args constructor to support extract");
 }
 
-/// return true if keys can satisfy parameter names
+/// Deserialize an instance of a user-defined type from a json object.
+unittest {
+  import jsonizer.jsonize;
+  import jsonizer.tojson;
+
+  static struct Foo {
+    mixin JsonizeMe;
+
+    @jsonize {
+      int i;
+      string[] a;
+    }
+  }
+
+  auto jstr = q{
+    {
+      "i": 1,
+      "a": [ "a", "b" ]
+    }
+  };
+
+  // you could use `readJSON` instead of `parseJSON.fromJSON`
+  auto foo = jstr.parseJSON.fromJSON!Foo;
+  assert(foo.i == 1);
+  assert(foo.a == [ "a", "b" ]);
+}
+
+// return true if keys can satisfy parameter names
 private bool canSatisfyCtor(alias Ctor)(JSONValue json) {
   auto obj = json.object;
   alias Params   = ParameterIdentifierTuple!Ctor;

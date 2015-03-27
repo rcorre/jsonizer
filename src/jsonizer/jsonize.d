@@ -193,66 +193,6 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
   }
 }
 
-/// json conversion of primitive types
-unittest {
-  import std.math : approxEqual;
-  enum Category { one, two }
-
-  auto j0 = toJSON(true);
-  assert(j0.type == JSON_TYPE.TRUE);
-  assert(fromJSON!bool(j0));
-
-  auto j1 = toJSON("bork");
-  assert(j1.type == JSON_TYPE.STRING && j1.str == "bork");
-  assert(fromJSON!string(j1) == "bork");
-
-  auto j2 = toJSON(4.1);
-  assert(j2.type == JSON_TYPE.FLOAT && j2.floating.approxEqual(4.1));
-  assert(fromJSON!float(j2).approxEqual(4.1));
-  assert(fromJSON!double(j2).approxEqual(4.1));
-  assert(fromJSON!real(j2).approxEqual(4.1));
-
-  auto j3 = toJSON(41);
-  assert(j3.type == JSON_TYPE.INTEGER && j3.integer == 41);
-  assert(fromJSON!int(j3) == 41);
-  assert(fromJSON!long(j3) == 41);
-
-  auto j4 = toJSON(41u);
-  assert(j4.type == JSON_TYPE.UINTEGER && j4.uinteger == 41u);
-  assert(fromJSON!uint(j4) == 41u);
-  assert(fromJSON!ulong(j4) == 41u);
-
-  auto jenum = toJSON!Category(Category.one);
-  assert(jenum.type == JSON_TYPE.STRING);
-  assert(jenum.fromJSON!Category == Category.one);
-
-  // homogenous json array
-  auto j5 = toJSON([9, 8, 7, 6]);
-  assert(j5.array[0].integer == 9);
-  assert(j5.array[1].integer == 8);
-  assert(j5.array[2].integer == 7);
-  assert(j5.array[3].integer == 6);
-  assert(j5.type == JSON_TYPE.ARRAY);
-  assert(fromJSON!(int[])(j5) == [9, 8, 7, 6]);
-
-  // heterogenous json array
-  auto j6 = toJSON("sammich", 1.5, 2, 3u);
-  assert(j6.array[0].str == "sammich");
-  assert(j6.array[1].floating.approxEqual(1.5));
-  assert(j6.array[2].integer == 2);
-  assert(j6.array[3].uinteger == 3u);
-
-  // associative array
-  int[string] aa = ["a" : 1, "b" : 2, "c" : 3];
-  auto j7 = toJSON(aa);
-  assert(j7.type == JSON_TYPE.OBJECT);
-  assert(j7.object["a"].integer == 1);
-  assert(j7.object["b"].integer == 2);
-  assert(j7.object["c"].integer == 3);
-  assert(fromJSON!(int[string])(j7) == aa);
-  assert(j7.fromJSON!int("b") == 2);
-}
-
 /// object serialization -- fields only
 unittest {
   import std.math : approxEqual;
