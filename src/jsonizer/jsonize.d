@@ -28,12 +28,14 @@ public import jsonizer.internal.attribute;
 // if member is marked with @jsonize, returns the name of the member.
 // if member is not marked with @jsonize, returns null
 string jsonizeKey(alias obj, string memberName)() {
-  foreach(attr ; __traits(getAttributes, mixin("obj." ~ memberName))) {
-    static if (is(attr == jsonize)) { // @jsonize someMember;
-      return memberName;          // use member name as-is
-    }
-    else static if (is(typeof(attr) == jsonize)) { // @jsonize("someKey") someMember;
-      return (attr.key is null) ? memberName : attr.key;
+  static if (__traits(compiles, __traits(getAttributes, mixin("obj." ~ memberName)))) {
+    foreach(attr ; __traits(getAttributes, mixin("obj." ~ memberName))) {
+      static if (is(attr == jsonize)) { // @jsonize someMember;
+        return memberName;          // use member name as-is
+      }
+      else static if (is(typeof(attr) == jsonize)) { // @jsonize("someKey") someMember;
+        return (attr.key is null) ? memberName : attr.key;
+      }
     }
   }
   return null;
@@ -622,6 +624,26 @@ unittest {
     private int a;
 
     @jsonize public this(int a) {
+        this.a = a;
+    }
+  }
+
+  auto json = `{ "a": 5}`.parseJSON;
+  auto a = fromJSON!A(json);
+
+  assert(a.a == 5);
+}
+
+// Validate issue #19:
+// Unable to construct class containing private (not marked with @jsonize) types.
+unittest {
+  static class A {
+    mixin JsonizeMe;
+
+    alias Integer = int;
+    Integer a;
+
+    @jsonize public this(Integer a) {
         this.a = a;
     }
   }
