@@ -612,3 +612,22 @@ unittest {
 
   assert(a.a == 5);
 }
+
+// Validate issue #17:
+// Unable to construct class containing private (not marked with @jsonize) types.
+unittest {
+  static class A {
+    mixin JsonizeMe;
+
+    private int a;
+
+    @jsonize public this(int a) {
+        this.a = a;
+    }
+  }
+
+  auto json = `{ "a": 5}`.parseJSON;
+  auto a = fromJSON!A(json);
+
+  assert(a.a == 5);
+}
