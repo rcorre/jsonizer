@@ -40,9 +40,80 @@ enum JsonizeOptional {
   yes          /// field is optional -- deserialization can continue if field is not found in json
 }
 
+/// Use of `JsonizeOptional`:
+unittest {
+  import std.json            : parseJSON;
+  import std.exception       : collectException, assertNotThrown;
+  import jsonizer.jsonize    : JsonizeMe;
+  import jsonizer.fromjson   : fromJSON;
+  import jsonizer.exceptions : JsonizeMismatchException;
+  static struct S {
+    mixin JsonizeMe;
+
+    @jsonize {
+      int i; // i is non-optional (default)
+      @jsonize(JsonizeOptional.yes) {
+        @jsonize("_s") string s; // s is optional
+        @jsonize(JsonizeOptional.no) float f; // f is non-optional (overrides outer attribute)
+      }
+    }
+  }
+
+  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!S);
+  auto ex = collectException!JsonizeMismatchException(`{ "i": 5 }`.parseJSON.fromJSON!S);
+
+  assert(ex !is null, "missing non-optional field 'f' should trigger JsonizeMismatchException");
+  assert(ex.targetType == typeid(S));
+  assert(ex.missingKeys == [ "f" ]);
+  assert(ex.extraKeys == [ ]);
+}
+
+
 // TODO: use std.typecons : Flag instead? Would likely need to public import.
 /// Whether to silently ignore json keys that do not map to serialized members.
 enum JsonizeIgnoreExtraKeys {
   no, /// silently ignore extra keys in the json object being deserialized
   yes /// fail if the json object contains a keys that does not map to a serialized field
+}
+
+
+/// Use of `JsonizeIgnoreExtraKeys`:
+unittest {
+  import std.json            : parseJSON;
+  import std.exception       : collectException, assertNotThrown;
+  import jsonizer.jsonize    : JsonizeMe;
+  import jsonizer.fromjson   : fromJSON;
+  import jsonizer.exceptions : JsonizeMismatchException;
+
+  static struct NoCares {
+    mixin JsonizeMe;
+    @jsonize {
+      int i;
+      float f;
+    }
+  }
+
+  static struct VeryStrict {
+    mixin JsonizeMe!(JsonizeIgnoreExtraKeys.no);
+    @jsonize {
+      int i;
+      float f;
+    }
+  }
+
+  // no extra fields, neither should throw
+  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!NoCares);
+  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!VeryStrict);
+
+  // extra field "s"
+  // `NoCares` ignores extra keys, so it will not throw
+  assertNotThrown(`{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.fromJSON!NoCares);
+  // `VeryStrict` does not ignore extra keys
+  auto ex = collectException!JsonizeMismatchException(
+      `{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.fromJSON!VeryStrict);
+
+  assert(ex !is null, "extra field 's' should trigger JsonizeMismatchException");
+  assert(ex.targetType == typeid(VeryStrict));
+  assert(ex.missingKeys == [ ]);
+  assert(ex.extraKeys == [ "s" ]);
 }

@@ -525,69 +525,6 @@ unittest {
   assert(reconstruct._x == b._x && reconstruct._s == b._s);
 }
 
-/// required/optional members
-unittest {
-  import std.exception : collectException, assertNotThrown;
-  import jsonizer.exceptions : JsonizeMismatchException;
-  static struct S {
-    mixin JsonizeMe;
-
-    @jsonize {
-      int i; // i is non-optional (default)
-      @jsonize(JsonizeOptional.yes) {
-        @jsonize("_s") string s; // s is optional
-        @jsonize(JsonizeOptional.no) float f; // f is non-optional (overrides outer attribute)
-      }
-    }
-  }
-
-  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!S);
-  auto ex = collectException!JsonizeMismatchException(`{ "i": 5 }`.parseJSON.fromJSON!S);
-
-  assert(ex !is null, "missing non-optional field 'f' should trigger JsonizeMismatchException");
-  assert(ex.targetType == typeid(S));
-  assert(ex.missingKeys == [ "f" ]);
-  assert(ex.extraKeys == [ ]);
-}
-
-/// `JsonizeIgnoreExtraKeys` behavior
-unittest {
-  import std.exception : collectException, assertNotThrown;
-  import jsonizer.exceptions : JsonizeMismatchException;
-
-  static struct NoCares {
-    mixin JsonizeMe;
-    @jsonize {
-      int i;
-      float f;
-    }
-  }
-
-  static struct VeryStrict {
-    mixin JsonizeMe!(JsonizeIgnoreExtraKeys.no);
-    @jsonize {
-      int i;
-      float f;
-    }
-  }
-
-  // no extra fields, neither should throw
-  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!NoCares);
-  assertNotThrown(`{ "i": 5, "f": 0.2}`.parseJSON.fromJSON!VeryStrict);
-
-  // extra field "s"
-  // `NoCares` ignores extra keys, so it will not throw
-  assertNotThrown(`{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.fromJSON!NoCares);
-  // `VeryStrict` does not ignore extra keys
-  auto ex = collectException!JsonizeMismatchException(
-      `{ "i": 5, "f": 0.2, "s": "hi"}`.parseJSON.fromJSON!VeryStrict);
-
-  assert(ex !is null, "extra field 's' should trigger JsonizeMismatchException");
-  assert(ex.targetType == typeid(VeryStrict));
-  assert(ex.missingKeys == [ ]);
-  assert(ex.extraKeys == [ "s" ]);
-}
-
 // members that potentially conflict with variables used in the mixin
 unittest {
   static struct Foo {
