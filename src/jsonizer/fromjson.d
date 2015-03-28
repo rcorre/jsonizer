@@ -246,7 +246,10 @@ T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
   }
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
 
-  static if (is(typeof(null) : T)) {
+  // TODO: typeof(null) -- correct check here? is(T == class)?
+  // maybe will not be necessary after rework of dynamic construction (remove use of factory).
+  static if (is(typeof(null) : T) && is(typeof(T.init.populateFromJSON)))
+  {
     // look for class keyword in json
     auto className = json.fromJSON!string(jsonizeClassKeyword, null);
     // try creating an instance with Object.factory

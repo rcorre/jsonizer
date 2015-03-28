@@ -589,3 +589,26 @@ unittest {
   assert(a !is null && a.c == 1 && a.a == 5);
   assert(b !is null && b.c == 2 && b.b == "hello");
 }
+
+// TODO: These are not examples but edge-case tests
+// factor out into dedicated test modules
+
+// Validate issue #20:
+// Unable to de-jsonize a class when a construct is marked @jsonize
+unittest {
+  import std.json          : parseJSON;
+  import jsonizer.jsonize  : jsonize, JsonizeMe;
+  import jsonizer.fromjson : fromJSON;
+
+  static class A {
+    int a;
+    @jsonize this(string a) {
+      this.a = a.to!int;
+    }
+  }
+
+  auto json = `{ "a": "5"}`.parseJSON;
+  auto a = fromJSON!A(json);
+
+  assert(a.a == 5);
+}
