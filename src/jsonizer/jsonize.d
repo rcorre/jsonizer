@@ -24,25 +24,46 @@ import jsonizer.fromjson;
 
 public import jsonizer.internal.attribute;
 
-private template filteredMembers(alias T) {
-  enum filteredMembers = Erase!("__ctor", __traits(allMembers, T));
+// Return members of T that could be serializeable.
+// Use `jsonizeKey` to reduce the result of `filteredMembers` to only members marked for
+// serialization
+private template filteredMembers(T) {
+  enum filteredMembers =
+    EraseAll!("_toJSON",
+    EraseAll!("_fromJSON",
+    EraseAll!("__ctor",
+      __traits(allMembers, T))));
 }
 
 // if member is marked with @jsonize("someName"), returns "someName".
 // if member is marked with @jsonize, returns the name of the member.
 // if member is not marked with @jsonize, returns null
-string jsonizeKey(alias obj, string memberName)() {
-  static if (__traits(compiles, __traits(getAttributes, mixin("obj." ~ memberName)))) {
-    foreach(attr ; __traits(getAttributes, mixin("obj." ~ memberName))) {
-      static if (is(attr == jsonize)) { // @jsonize someMember;
-        return memberName;          // use member name as-is
-      }
-      else static if (is(typeof(attr) == jsonize)) { // @jsonize("someKey") someMember;
-        return (attr.key is null) ? memberName : attr.key;
+// example usage within a struct/class:
+// enum key = jsonizeKey!(__traits(getMember, this, member), member)
+private template jsonizeKey(alias member, string defaultName) {
+  static string helper() {
+    static if (__traits(compiles, __traits(getAttributes, member))) {
+      foreach(attr ; __traits(getAttributes, member)) {
+        static if (is(attr == jsonize)) { // @jsonize someMember;
+          return defaultName;             // use member name as-is
+        }
+        else static if (is(typeof(attr) == jsonize)) { // @jsonize("someKey") someMember;
+          return (attr.key is null) ? defaultName : attr.key;
+        }
       }
     }
+
+    return null;
   }
-  return null;
+
+  enum jsonizeKey = helper;
+}
+
+// Hack to catch and ignore aliased types
+// for example, a class contains 'alias Integer = int',
+// it will be redirected to this template and return null (cannot be jsonized)
+private template jsonizeKey(T, string unused) { 
+  enum jsonizeKey = null;
 }
 
 // return true if member is marked with @jsonize(JsonizeOptional.yes).
@@ -103,7 +124,8 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
 
         // check if each member is actually a member and is marked with the @jsonize attribute
         foreach(member ; filteredMembers!T) {
-          enum key = jsonizeKey!(this, member);              // find @jsonize, deduce member key
+          // find @jsonize, deduce member key
+          enum key = jsonizeKey!(__traits(getMember, this, member), member);
 
           static if (key !is null) {
             if (key in keyValPairs) {
@@ -132,7 +154,7 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
           foreach(jsonKey ; json.object.byKey) {
             bool match = false;
             foreach(member ; filteredMembers!T) {
-              enum memberKey = jsonizeKey!(this, member);
+              enum memberKey = jsonizeKey!(__traits(getMember, this, member), member);
               if (memberKey == jsonKey) {
                 match = true;
                 break;
@@ -156,7 +178,8 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
       std.json.JSONValue[string] keyValPairs;
       // look for members marked with @jsonize, ignore __ctor
       foreach(member ; filteredMembers!T) {
-        enum key = jsonizeKey!(this, member); // find @jsonize, deduce member key
+        // find @jsonize, deduce member key
+        enum key = jsonizeKey!(__traits(getMember, this, member), member);
         static if(key !is null) {
           auto val = mixin("this." ~ member); // get the member's value
           keyValPairs[key] = toJSON(val);     // add the pair <memberKey> : <memberValue>
