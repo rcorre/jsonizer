@@ -55,8 +55,9 @@ T fromJSON(T : bool)(JSONValue json) {
   else if (json.type == JSON_TYPE.FALSE) {
     return false;
   }
-  enforce(0, format("tried to extract bool from json of type %s", json.type));
-  assert(0);
+
+  // expected 'true' or 'false'
+  throw new JsonizeTypeException(typeid(bool), json, JSON_TYPE.TRUE, JSON_TYPE.FALSE);
 }
 
 /// Extract booleans from json values.
@@ -90,9 +91,10 @@ T fromJSON(T : real)(JSONValue json) if (!is(T == enum)) {
       enforce(json.str.isNumeric, format("tried to extract %s from json string %s", T.stringof, json.str));
       return to!T(json.str); // try to parse string as int
     default:
-      enforce(0, format("tried to extract %s from json of type %s", T.stringof, json.type));
   }
-  assert(0, "should not be reacheable");
+
+  throw new JsonizeTypeException(typeid(bool), json,
+      JSON_TYPE.FLOAT, JSON_TYPE.INTEGER, JSON_TYPE.UINTEGER, JSON_TYPE.STRING);
 }
 
 /// Extract various numeric types.
@@ -142,7 +144,7 @@ unittest {
 
 /// Extract an associative array from a JSONValue.
 T fromJSON(T)(JSONValue json) if (isAssociativeArray!T) {
-  assert(is(KeyType!T : string), "toJSON requires string keys for associative array");
+  static assert(is(KeyType!T : string), "toJSON requires string keys for associative array");
   if (json.type == JSON_TYPE.NULL) { return null; }
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   alias ValType = ValueType!T;
@@ -279,6 +281,7 @@ T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
   static if(is(T == struct) || is(typeof(new T) == T)) { // can object be default constructed?
     return invokeDefaultCtor!(T)(json);
   }
+
   assert(0, T.stringof ~ " must have a no-args constructor to support extract");
 }
 
