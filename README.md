@@ -218,6 +218,10 @@ marking members with `@jsonize` are only necessary for serialization -- if your
 object only needs to support deserialization, marking a constructor is
 sufficient.
 
+If a type has no default (no-args) constructor and jsonizer cannot invoke any constructor marked
+with @jsonize, it will throw a `JsonizeConstructorException` which provides info on what
+constructors were attempted.
+
 ## Factory construction
 This is one of the newer and least tested features of jsonizer.
 Suppose you have the following classes:
