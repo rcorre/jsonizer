@@ -24,6 +24,10 @@ import jsonizer.fromjson;
 
 public import jsonizer.internal.attribute;
 
+private template filteredMembers(alias T) {
+  enum filteredMembers = Erase!("__ctor", __traits(allMembers, T));
+}
+
 // if member is marked with @jsonize("someName"), returns "someName".
 // if member is marked with @jsonize, returns the name of the member.
 // if member is not marked with @jsonize, returns null
@@ -86,9 +90,8 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
     private void _fromJSON(std.json.JSONValue json) {
       // scoped imports include necessary functions without avoid polluting class namespace
       import std.algorithm : filter;
-      import std.typetuple : Erase;
       import jsonizer.fromjson;
-      import jsonizer.jsonize : jsonizeKey, isOptional, JsonizeIgnoreExtraKeys;
+      import jsonizer.jsonize : jsonizeKey, isOptional, filteredMembers, JsonizeIgnoreExtraKeys;
       import jsonizer.exceptions : JsonizeMismatchException;
 
       // TODO: look into moving this up a level and not generating _fromJSON at all.
@@ -99,7 +102,7 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
         auto keyValPairs = json.object;
 
         // check if each member is actually a member and is marked with the @jsonize attribute
-        foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
+        foreach(member ; filteredMembers!T) {
           enum key = jsonizeKey!(this, member);              // find @jsonize, deduce member key
 
           static if (key !is null) {
@@ -128,7 +131,7 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
           string[] extraKeys;
           foreach(jsonKey ; json.object.byKey) {
             bool match = false;
-            foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
+            foreach(member ; filteredMembers!T) {
               enum memberKey = jsonizeKey!(this, member);
               if (memberKey == jsonKey) {
                 match = true;
@@ -148,12 +151,11 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
 
   private mixin template MakeSerializer() {
     private auto _toJSON() {
-      import std.typetuple : Erase;
       import jsonizer.tojson;
-      import jsonizer.jsonize : jsonizeKey;
+      import jsonizer.jsonize : jsonizeKey, filteredMembers;
       std.json.JSONValue[string] keyValPairs;
       // look for members marked with @jsonize, ignore __ctor
-      foreach(member ; Erase!("__ctor", __traits(allMembers, T))) {
+      foreach(member ; filteredMembers!T) {
         enum key = jsonizeKey!(this, member); // find @jsonize, deduce member key
         static if(key !is null) {
           auto val = mixin("this." ~ member); // get the member's value
