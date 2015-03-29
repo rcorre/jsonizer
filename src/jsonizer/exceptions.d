@@ -8,8 +8,11 @@
   */
 module jsonizer.exceptions;
 
-import std.json : JSONValue, JSON_TYPE;
-import std.string : format;
+import std.json      : JSONValue, JSON_TYPE;
+import std.string    : format, join;
+import std.traits    : ParameterTypeTuple, ParameterIdentifierTuple;
+import std.typecons  : staticIota;
+import std.typetuple : staticMap;
 
 /// Base class of any exception thrown by `jsonizer`.
 class JsonizeException : Exception {
@@ -98,4 +101,67 @@ unittest {
       "JsonizeTypeException should report all extra keys");
   assert(missingKeys.all!(x => e.msg.canFind(x)),
       "JsonizeTypeException should report all missing keys");
+}
+
+/// Thrown when a type has no default constructor and the custom constructor cannot be fulfilled.
+class JsonizeConstructorException : JsonizeException {
+  private enum fmt =
+    "%s has no default constructor, and none of the following constructors could be fulfilled: \n" ~
+    "%s\n" ~
+    "json object:\n %s";
+
+  const {
+    TypeInfo targetType; /// Tye type jsonizer was attempting to deserialize to.
+    JSONValue json;      /// The json value that was being deserialized
+  }
+
+  /// Construct and throw a `JsonizeConstructorException`
+  /// Params:
+  ///   T = Type being deserialized
+  ///   Ctors = constructors that were attempted
+  ///   json = json object being deserialized
+  static void doThrow(T, Ctors ...)(JSONValue json) {
+    auto signatures = [staticMap!(ctorSignature, Ctors)].join("\n");
+
+    throw new JsonizeConstructorException(typeid(T), signatures, json);
+  }
+
+  private this(TypeInfo targetType, string ctorSignatures, JSONValue json) {
+    super(fmt.format(targetType, ctorSignatures, json));
+
+    this.targetType  = targetType;
+    this.json = json;
+  }
+}
+
+private:
+// Represent the function signature of a constructor as a string.
+template ctorSignature(alias ctor) {
+  alias params = ParameterIdentifierTuple!ctor;
+  alias types  = ParameterTypeTuple!ctor;
+
+  // build a string "type1 param1, type2 param2, ..., typeN paramN"
+  static string paramString() {
+    string s = "";
+
+    foreach(i ; staticIota!(0, params.length)) {
+      s ~= types[i].stringof ~ " " ~ params[i];
+
+      static if (i < params.length - 1) {
+        s ~= ", ";
+      }
+    }
+
+    return s;
+  }
+
+  enum ctorSignature = "this(%s)".format(paramString);
+}
+
+unittest {
+  static class Foo {
+    this(string s, int i, float f) { }
+  }
+
+  assert(ctorSignature!(Foo.__ctor) == "this(string s, int i, float f)");
 }

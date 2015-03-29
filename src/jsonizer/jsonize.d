@@ -8,7 +8,6 @@
   */
 module jsonizer.jsonize;
 
-import std.typecons  : staticIota;
 import std.typetuple : EraseAll;
 
 import jsonizer.tojson : toJSON;
@@ -74,19 +73,6 @@ bool isOptional(alias obj, string memberName)() {
     }
   }
   return false;
-}
-
-template isJsonized(alias member) {
-  static bool helper() {
-    foreach(attr ; __traits(getAttributes, member)) {
-      static if (is(attr == jsonize) || is(typeof(attr) == jsonize)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  enum isJsonized = helper();
 }
 
 /// Generate json (de)serialization methods for the type this is mixed in to.
@@ -622,24 +608,37 @@ unittest {
 // factor out into dedicated test modules
 
 // Validate issue #20:
-// Unable to de-jsonize a class when a construct is marked @jsonize
+// Unable to de-jsonize a class when a construct is marked @jsonize.
 unittest {
-  import std.conv : to;
-  import std.json : parseJSON;
-  import jsonizer.jsonize  : jsonize, JsonizeMe;
-  import jsonizer.fromjson : fromJSON;
+  import std.json            : parseJSON;
+  import std.algorithm       : canFind;
+  import std.exception       : collectException;
+  import jsonizer.jsonize    : jsonize, JsonizeMe;
+  import jsonizer.exceptions : JsonizeConstructorException;
+  import jsonizer.fromjson   : fromJSON;
 
   static class A {
-    int a;
-    @jsonize this(string a) {
-      this.a = a.to!int;
+    private const int a;
+
+    this(float f) {
+      a = 0;
+    }
+
+    @jsonize this(int a) {
+      this.a = a;
+    }
+
+    @jsonize this(string s, float f) {
+      a = 0;
     }
   }
 
-  auto json = `{ "a": "5"}`.parseJSON;
-  auto a = fromJSON!A(json);
-
-  assert(a.a == 5);
+  auto ex = collectException!JsonizeConstructorException(`{}`.parseJSON.fromJSON!A);
+  assert(ex !is null, "failure to match @jsonize'd constructors should throw");
+  assert(ex.msg.canFind("(int a)") && ex.msg.canFind("(string s, float f)"),
+    "JsonizeConstructorException message should contain attempted constructors");
+  assert(!ex.msg.canFind("(float f)"),
+    "JsonizeConstructorException message should not contain non-jsonized constructors");
 }
 
 // Validate issue #17:

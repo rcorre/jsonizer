@@ -18,7 +18,7 @@ import std.algorithm;
 import std.exception;
 import std.typetuple;
 import std.typecons : staticIota, Tuple;
-import jsonizer.exceptions : JsonizeTypeException;
+import jsonizer.exceptions : JsonizeTypeException, JsonizeConstructorException;
 import jsonizer.internal.attribute;
 
 /// json member used to map a json object to a D type
@@ -275,6 +275,13 @@ T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
         }
       }
     }
+
+    // no constructor worked, is default-construction an option?
+    static if(!(is(T == struct) || is(typeof(new T) == T))) {
+      // not default-constructable, need to fail here
+      alias ctors = Filter!(isJsonized, __traits(getOverloads, T, "__ctor"));
+      JsonizeConstructorException.doThrow!(T, ctors)(json);
+    }
   }
 
   // if no @jsonized ctor, try to use a default ctor and populate the fields
@@ -282,7 +289,7 @@ T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
     return invokeDefaultCtor!(T)(json);
   }
 
-  assert(0, T.stringof ~ " must have a no-args constructor to support extract");
+  assert(0, "all attempts at deserializing " ~ T.stringof ~ " failed.");
 }
 
 /// Deserialize an instance of a user-defined type from a json object.
@@ -363,6 +370,44 @@ private T invokeDefaultCtor(T)(JSONValue json) {
   }
   obj.populateFromJSON(json);
   return obj;
+}
+
+private template isJsonized(alias member) {
+  static bool helper() {
+    foreach(attr ; __traits(getAttributes, member)) {
+      static if (is(attr == jsonize) || is(typeof(attr) == jsonize)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  enum isJsonized = helper();
+}
+
+unittest {
+  static class Foo {
+    @jsonize int i;
+    @jsonize("s") string _s;
+    @jsonize @property string sprop() { return _s; }
+    @jsonize @property void sprop(string str) { _s = str; }
+    float f;
+    @property int iprop() { return i; }
+
+    @jsonize this(string s) { }
+    this(int i) { }
+  }
+
+  Foo f;
+  static assert(isJsonized!(__traits(getMember, f, "i")));
+  static assert(isJsonized!(__traits(getMember, f, "_s")));
+  static assert(isJsonized!(__traits(getMember, f, "sprop")));
+  static assert(isJsonized!(__traits(getMember, f, "i")));
+  static assert(!isJsonized!(__traits(getMember, f, "f")));
+  static assert(!isJsonized!(__traits(getMember, f, "iprop")));
+
+  import std.typetuple : Filter;
+  static assert(Filter!(isJsonized, __traits(getOverloads, Foo, "__ctor")).length == 1);
 }
 
 bool hasCustomJsonCtor(T)() {
