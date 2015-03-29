@@ -8,19 +8,11 @@
   */
 module jsonizer.jsonize;
 
-import std.json;
-import std.file;
-import std.conv;
-import std.range;
-import std.traits;
-import std.string;
-import std.algorithm;
-import std.exception;
-import std.typetuple;
-import std.typecons : staticIota;
+import std.typecons  : staticIota;
+import std.typetuple : EraseAll;
 
-import jsonizer.tojson;
-import jsonizer.fromjson;
+import jsonizer.tojson : toJSON;
+import jsonizer.fromjson : fromJSON;
 
 public import jsonizer.internal.attribute;
 
@@ -62,7 +54,7 @@ private template jsonizeKey(alias member, string defaultName) {
 // Hack to catch and ignore aliased types
 // for example, a class contains 'alias Integer = int',
 // it will be redirected to this template and return null (cannot be jsonized)
-private template jsonizeKey(T, string unused) { 
+private template jsonizeKey(T, string unused) {
   enum jsonizeKey = null;
 }
 
@@ -173,7 +165,7 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
 
   private mixin template MakeSerializer() {
     private auto _toJSON() {
-      import jsonizer.tojson;
+      import jsonizer.tojson  : toJSON;
       import jsonizer.jsonize : jsonizeKey, filteredMembers;
       std.json.JSONValue[string] keyValPairs;
       // look for members marked with @jsonize, ignore __ctor
@@ -331,7 +323,10 @@ unittest {
 
 /// object serialization with custom constructor
 unittest {
+  import std.conv : to;
+  import std.json : parseJSON;
   import std.math : approxEqual;
+  import jsonizer.tojson : toJSON;
 
   static class Custom {
     mixin JsonizeMe;
@@ -417,6 +412,10 @@ unittest {
 
 /// json file I/O
 unittest {
+  import std.file          : remove;
+  import jsonizer.fromjson : readJSON;
+  import jsonizer.tojson   : writeJSON;
+
   enum file = "test.json";
   scope(exit) remove(file);
 
@@ -587,6 +586,8 @@ private {
 
 /// type inference
 unittest {
+  import std.json   : parseJSON;
+  import std.string : format;
   import std.traits : fullyQualifiedName;
 
   // need to use these because unittest is assigned weird name
@@ -623,7 +624,8 @@ unittest {
 // Validate issue #20:
 // Unable to de-jsonize a class when a construct is marked @jsonize
 unittest {
-  import std.json          : parseJSON;
+  import std.conv : to;
+  import std.json : parseJSON;
   import jsonizer.jsonize  : jsonize, JsonizeMe;
   import jsonizer.fromjson : fromJSON;
 
@@ -643,6 +645,8 @@ unittest {
 // Validate issue #17:
 // Unable to construct class containing private (not marked with @jsonize) types.
 unittest {
+  import std.json : parseJSON;
+
   static class A {
     mixin JsonizeMe;
 
@@ -662,6 +666,8 @@ unittest {
 // Validate issue #18:
 // Unable to construct class with const types.
 unittest {
+  import std.json : parseJSON;
+
   static class A {
     mixin JsonizeMe;
 
@@ -681,6 +687,8 @@ unittest {
 // Validate issue #19:
 // Unable to construct class containing private (not marked with @jsonize) types.
 unittest {
+  import std.json : parseJSON;
+
   static class A {
     mixin JsonizeMe;
 
