@@ -8,72 +8,11 @@
   */
 module jsonizer.jsonize;
 
-import std.typetuple : EraseAll;
-
 import jsonizer.tojson : toJSON;
 import jsonizer.fromjson : fromJSON;
+import jsonizer.internal.util;
 
 public import jsonizer.internal.attribute;
-
-// Return members of T that could be serializeable.
-// Use `jsonizeKey` to reduce the result of `filteredMembers` to only members marked for
-// serialization
-private template filteredMembers(T) {
-  enum filteredMembers =
-    EraseAll!("_toJSON",
-    EraseAll!("_fromJSON",
-    EraseAll!("__ctor",
-      __traits(allMembers, T))));
-}
-
-// if member is marked with @jsonize("someName"), returns "someName".
-// if member is marked with @jsonize, returns the name of the member.
-// if member is not marked with @jsonize, returns null
-// example usage within a struct/class:
-// enum key = jsonizeKey!(__traits(getMember, this, member), member)
-private template jsonizeKey(alias member, string defaultName) {
-  static string helper() {
-    static if (__traits(compiles, __traits(getAttributes, member))) {
-      foreach(attr ; __traits(getAttributes, member)) {
-        static if (is(attr == jsonize)) { // @jsonize someMember;
-          return defaultName;             // use member name as-is
-        }
-        else static if (is(typeof(attr) == jsonize)) { // @jsonize("someKey") someMember;
-          return (attr.key is null) ? defaultName : attr.key;
-        }
-      }
-    }
-
-    return null;
-  }
-
-  enum jsonizeKey = helper;
-}
-
-// Hack to catch and ignore aliased types
-// for example, a class contains 'alias Integer = int',
-// it will be redirected to this template and return null (cannot be jsonized)
-private template jsonizeKey(T, string unused) {
-  enum jsonizeKey = null;
-}
-
-// return true if member is marked with @jsonize(JsonizeOptional.yes).
-bool isOptional(alias obj, string memberName)() {
-  // start with most nested attribute and move up, looking for a JsonizeOptional tag
-  foreach_reverse(attr ; __traits(getAttributes, mixin("obj." ~ memberName))) {
-    static if (is(typeof(attr) == jsonize)) {
-      final switch (attr.optional) with (JsonizeOptional) {
-        case unspecified:
-          continue;
-        case no:
-          return false;
-        case yes:
-          return true;
-      }
-    }
-  }
-  return false;
-}
 
 /// Generate json (de)serialization methods for the type this is mixed in to.
 /// The methods `_toJSON` and `_fromJSON` are generated.
@@ -90,8 +29,9 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
       // scoped imports include necessary functions without avoid polluting class namespace
       import std.algorithm : filter;
       import jsonizer.fromjson;
-      import jsonizer.jsonize : jsonizeKey, isOptional, filteredMembers, JsonizeIgnoreExtraKeys;
+      import jsonizer.jsonize    : JsonizeIgnoreExtraKeys;
       import jsonizer.exceptions : JsonizeMismatchException;
+      import jsonizer.internal.util;
 
       // TODO: look into moving this up a level and not generating _fromJSON at all.
       static if (!hasCustomJsonCtor!T) {
@@ -113,7 +53,7 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
               mixin("this." ~ member ~ "= val;");               // assign value to member
             }
             else {
-              static if (!isOptional!(this, member)) {
+              static if (!isOptional!(__traits(getMember, this, member))) {
                 missingKeys ~= key;
               }
             }
@@ -151,8 +91,8 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
 
   private mixin template MakeSerializer() {
     private auto _toJSON() {
-      import jsonizer.tojson  : toJSON;
-      import jsonizer.jsonize : jsonizeKey, filteredMembers;
+      import jsonizer.tojson        : toJSON;
+      import jsonizer.internal.util : jsonizeKey, filteredMembers;
       std.json.JSONValue[string] keyValPairs;
       // look for members marked with @jsonize, ignore __ctor
       foreach(member ; filteredMembers!T) {

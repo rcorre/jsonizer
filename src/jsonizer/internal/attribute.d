@@ -68,7 +68,6 @@ unittest {
   assert(ex.extraKeys == [ ]);
 }
 
-
 // TODO: use std.typecons : Flag instead? Would likely need to public import.
 /// Whether to silently ignore json keys that do not map to serialized members.
 enum JsonizeIgnoreExtraKeys {
