@@ -8,7 +8,7 @@
   */
 module jsonizer.internal.util;
 
-import std.typetuple : EraseAll;
+import std.typetuple;
 import jsonizer.internal.attribute;
 
 /// Return members of T that could be serializeable.
@@ -28,22 +28,21 @@ template filteredMembers(T) {
 /// example usage within a struct/class:
 /// enum key = jsonizeKey!(__traits(getMember, this, member), member)
 template jsonizeKey(alias member, string defaultName) {
-  static string helper() {
-    static if (__traits(compiles, __traits(getAttributes, member))) {
-      foreach(attr ; __traits(getAttributes, member)) {
-        static if (is(attr == jsonize)) { // @jsonize someMember;
-          return defaultName;             // use member name as-is
-        }
-        else static if (is(typeof(attr) == jsonize)) { // @jsonize("someKey") someMember;
-          return (attr.key is null) ? defaultName : attr.key;
-        }
-      }
-    }
+  alias found = findAttribute!(jsonize, member);
 
-    return null;
+  static if (found.length == 0) {
+    // no @jsonize attribute found
+    enum jsonizeKey = null;
   }
-
-  enum jsonizeKey = helper;
+  else static if (isValueAttribute!(found[$ - 1])) {
+    // most-nested attribute is @jsonize(args...), key is attr.key
+    enum key = found[$ - 1].key;
+    enum jsonizeKey = (key is null) ? defaultName : key;
+  }
+  else {
+    // most-nested attribute is @jsonize, no custom key specified
+    enum jsonizeKey = defaultName;
+  }
 }
 
 /// Hack to catch and ignore aliased types.
@@ -75,4 +74,93 @@ template isOptional(alias member) {
   }
 
   enum isOptional = helper;
+}
+
+/// Get a tuple of all attributes on `sym` matching `attr`.
+template findAttribute(alias attr, alias sym) {
+  static assert(__traits(compiles, __traits(getAttributes, sym)),
+      "cannot get attributes of " ~ sym.stringof);
+
+  template match(alias a) {
+    enum match = (is(a == attr) || is(typeof(a) == attr));
+  }
+
+  alias findAttribute = Filter!(match, __traits(getAttributes, sym));
+}
+
+unittest {
+  struct attr { int i; }
+  struct junk { int i; }
+
+  void fun0() { }
+  @attr void fun1() { }
+  @attr(2) void fun2() { }
+  @junk @attr void fun3() { }
+  @attr(3) @junk @attr void fun4() { }
+
+  static assert(findAttribute!(attr, fun0).length == 0);
+  static assert(findAttribute!(attr, fun1).length == 1);
+  static assert(findAttribute!(attr, fun2).length == 1);
+  static assert(findAttribute!(attr, fun3).length == 1);
+  static assert(findAttribute!(attr, fun4).length == 2);
+
+  struct S0 { }
+  @attr struct S1 { }
+  @junk @attr struct S { }
+  static assert(findAttribute!(attr, S).length == 1);
+}
+
+/// True if `sym` has an attribute `attr`.
+template hasAttribute(alias attr, alias sym) {
+  enum hasAttribute = findAttribute!(attr, sym).length > 0;
+}
+
+/// True if `attr` has a value (e.g. it is not a type).
+template isValueAttribute(alias attr) {
+  enum isValueAttribute = is(typeof(attr));
+}
+
+auto getMember(string name)() {
+  return (x) => __traits(getMember, x, name);
+}
+
+T construct(T, Params ...)(Params params) {
+  static if (is(typeof(T(params)) == T)) {
+    return T(params);
+  }
+  else static if (is(typeof(new T(params)) == T)) {
+    return new T(params);
+  }
+  else {
+    static assert(0, "Cannot construct");
+  }
+}
+
+unittest {
+  static struct Foo {
+    this(int i) { this.i = i; }
+    int i;
+  }
+
+  assert(construct!Foo().i == 0);
+  assert(construct!Foo(4).i == 4);
+  assert(!__traits(compiles, construct!Foo("asd")));
+}
+
+unittest {
+  static class Foo {
+    this(int i) { this.i = i; }
+
+    this(int i, string s) {
+      this.i = i;
+      this.s = s;
+    }
+
+    int i;
+    string s;
+  }
+
+  assert(construct!Foo(4).i == 4);
+  assert(construct!Foo(4, "asdf").s == "asdf");
+  assert(!__traits(compiles, construct!Foo("asd")));
 }
