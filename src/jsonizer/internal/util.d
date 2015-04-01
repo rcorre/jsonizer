@@ -115,9 +115,30 @@ template hasAttribute(alias attr, alias sym) {
   enum hasAttribute = findAttribute!(attr, sym).length > 0;
 }
 
+/// `hasAttribute`
+unittest {
+  enum attr;
+
+  void fun0() { }
+  @attr void fun1() { }
+
+  static assert(!hasAttribute!(attr, fun0));
+  static assert( hasAttribute!(attr, fun1));
+}
+
 /// True if `attr` has a value (e.g. it is not a type).
 template isValueAttribute(alias attr) {
   enum isValueAttribute = is(typeof(attr));
+}
+
+/// `isValueAttribute`
+unittest {
+  struct attr { int i; }
+
+  @attr @attr(3) void fun() { }
+
+  static assert(!isValueAttribute!(__traits(getAttributes, fun)[0]));
+  static assert( isValueAttribute!(__traits(getAttributes, fun)[1]));
 }
 
 auto getMember(string name)() {
