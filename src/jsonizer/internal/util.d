@@ -54,26 +54,26 @@ template jsonizeKey(T, string unused) {
 
 /// return true if member is marked with @jsonize(JsonizeOptional.yes).
 template isOptional(alias member) {
-  static bool helper() {
-    static if (__traits(compiles, __traits(getAttributes, member))) {
-      // start with most nested attribute and move up, looking for a JsonizeOptional tag
-      foreach_reverse(attr ; __traits(getAttributes, member)) {
-        static if (is(typeof(attr) == jsonize)) {
-          final switch (attr.optional) with (JsonizeOptional) {
-            case unspecified:
-              continue;
-            case no:
-              return false;
-            case yes:
-              return true;
-          }
-        }
-      }
+  alias found = Filter!(isValueAttribute, findAttribute!(jsonize, member));
+
+  // find an explicit JsonizeOptional parameter.
+  // start with the attribute closest to the member and move outwards.
+  template helper(attrs ...) {
+    static if (attrs.length == 0) {
+      // recursion endpoint, no JsonizeOptional found.
+      enum helper = false;
     }
-    return false;
+    else static if (attrs[$ - 1].optional == JsonizeOptional.unspecified) {
+      // unspecified, recurse to less-nested attribute
+      enum helper = helper!(attrs[0 .. $ - 1]);
+    }
+    else {
+      // specified either yes or no, use that value
+      enum helper = (attrs[$ - 1].optional == JsonizeOptional.yes);
+    }
   }
 
-  enum isOptional = helper;
+  enum isOptional = helper!(found);
 }
 
 /// Get a tuple of all attributes on `sym` matching `attr`.
