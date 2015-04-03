@@ -15,9 +15,11 @@ Jsonizer consists of the following modules:
 
 - `jsonizer.fromjson`
   - parse a `T` from a `JSONValue` using `fromJSON!T`
+  - parse a `T` from a json string using `fromJSONString!T`
   - parse a `T` from a json file using `readJSON!T`
 - `jsonizer.tojson`
   - convert a `T` to a `JSONValue` using `toJSON!T`
+  - convert a `T` to a json string using `toJSONString!T`
   - write a `T` to a json file using `writeJSON!T`
 - `jsonizer.jsonize`
   - mixin `JsonizeMe` to enable json serialization for a user-defined type

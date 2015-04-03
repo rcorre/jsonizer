@@ -189,6 +189,18 @@ unittest {
   assert(json.fromJSON!int("c", 7) == 7);
 }
 
+/// Convert a json value in its string representation into a type `T`
+/// Params:
+///    T    = target type
+///    json = json string to deserialize
+T fromJSONString(T)(string json) {
+  return fromJSON!T(json.parseJSON);
+}
+
+unittest {
+  assert(fromJSONString!(int[])("[1, 2, 3]") == [1, 2, 3]);
+}
+
 /// Read a json-constructable object from a file.
 /// Params:
 ///   path = filesystem path to json file

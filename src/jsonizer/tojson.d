@@ -13,7 +13,7 @@ import std.traits;
 import std.conv : to;
 import std.file : write;
 import std.exception : enforce;
-import std.typecons : staticIota;
+import std.typecons : staticIota, Flag;
 
 // Primitive Type Conversions -----------------------------------------------------------
 /// convert a bool to a JSONValue
@@ -177,6 +177,24 @@ unittest {
 
   assert(json.fromJSON!int("i") == 12);
   assert(json.fromJSON!(string[])("a") == [ "a", "b" ]);
+}
+
+/// Whether to nicely format json string.
+alias PrettyJson = Flag!"PrettyJson";
+
+/// Convert an instance of some type `T` directly into a json-formatted string.
+/// Params:
+///   T      = type of object to convert
+///   obj    = object to convert to sjon
+///   pretty = whether to prettify string output
+string toJSONString(T)(T obj, PrettyJson pretty = PrettyJson.yes) {
+  auto json = obj.toJSON!T;
+  return pretty ? json.toPrettyString : json.toString;
+}
+
+unittest {
+  assert([1, 2, 3].toJSONString(PrettyJson.no) == "[1,2,3]");
+  assert([1, 2, 3].toJSONString(PrettyJson.yes) == "[\n    1,\n    2,\n    3\n]");
 }
 
 /// Write a jsonizeable object to a file.
