@@ -1,6 +1,7 @@
 # dub
 .dub/
 dub.selections.json
+__test__*
 
 # docs
 docs/
@@ -8,5 +9,4 @@ docs.json
 __dummy.html
 
 # library
-__test__library__
-libjsonizer.a
+*.a
