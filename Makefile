@@ -12,7 +12,7 @@ release:
 	@dub build $(SETCOMPILER) release --quiet
 
 test:
-	@dub test $(SETCOMPILER) --quiet
+	@dub test $(SETCOMPILER)
 
 docs:
 	@dub build $(SETCOMPILER) --build=ddox --quiet

@@ -35,7 +35,7 @@ struct PrivateFieldsStruct {
   }
 }
 
-struct StructProps {
+struct PropertyStruct {
   mixin JsonizeMe;
 
   @jsonize @property {
@@ -57,4 +57,31 @@ struct StructProps {
   bool   _b;
   float  _f;
   string _s;
+}
+
+struct ArrayStruct {
+  mixin JsonizeMe;
+
+  @jsonize {
+    int[] i;
+    string[] s;
+  }
+}
+
+struct NestedArrayStruct {
+  mixin JsonizeMe;
+
+  @jsonize {
+    int[][] i;
+    string[][] s;
+  }
+}
+
+struct StaticArrayStruct {
+  mixin JsonizeMe;
+
+  @jsonize {
+    int[3] i;
+    string[2] s;
+  }
 }
