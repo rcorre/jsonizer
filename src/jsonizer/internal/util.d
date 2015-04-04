@@ -185,3 +185,23 @@ unittest {
   assert(construct!Foo(4, "asdf").s == "asdf");
   assert(!__traits(compiles, construct!Foo("asd")));
 }
+
+template hasDefaultCtor(T) {
+  enum hasDefaultCtor = is(typeof(T()) == T) || is(typeof(new T()) == T);
+}
+
+unittest {
+  static struct S1 { }
+  static struct S2 { this(int i) { } }
+  static struct S3 { @disable this(); }
+
+  static class C1 { }
+  static class C2 { this(string s) { } }
+
+  static assert( hasDefaultCtor!S1);
+  static assert( hasDefaultCtor!S2);
+  static assert(!hasDefaultCtor!S3);
+
+  static assert( hasDefaultCtor!C1);
+  static assert(!hasDefaultCtor!C2);
+}

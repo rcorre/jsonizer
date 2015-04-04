@@ -20,6 +20,7 @@ import std.typetuple;
 import std.typecons : staticIota, Tuple;
 import jsonizer.exceptions : JsonizeTypeException, JsonizeConstructorException;
 import jsonizer.internal.attribute;
+import jsonizer.internal.util;
 
 /// json member used to map a json object to a D type
 enum jsonizeClassKeyword = "class";
@@ -289,7 +290,7 @@ T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
     }
 
     // no constructor worked, is default-construction an option?
-    static if(!(is(T == struct) || is(typeof(new T) == T))) {
+    static if(!hasDefaultCtor!T) {
       // not default-constructable, need to fail here
       alias ctors = Filter!(isJsonized, __traits(getOverloads, T, "__ctor"));
       JsonizeConstructorException.doThrow!(T, ctors)(json);
@@ -297,7 +298,7 @@ T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
   }
 
   // if no @jsonized ctor, try to use a default ctor and populate the fields
-  static if(is(T == struct) || is(typeof(new T) == T)) { // can object be default constructed?
+  static if(hasDefaultCtor!T) {
     return invokeDefaultCtor!(T)(json);
   }
 
