@@ -84,4 +84,53 @@ struct StaticArrayStruct {
     int[3] i;
     string[2] s;
   }
+
+  bool opEquals(StaticArrayStruct other) {
+    return i == other.i && s == other.s;
+  }
+}
+
+struct NestedStruct {
+  mixin JsonizeMe;
+  @jsonize {
+    int i;
+    string s;
+    Inner inner;
+  }
+
+  private struct Inner {
+    mixin JsonizeMe;
+    @jsonize {
+      double d;
+      int[] a;
+    }
+  }
+
+  this(int i, string s, double d, int[] a) {
+    this.i = i;
+    this.s = s;
+    inner = Inner(d, a);
+  }
+}
+
+struct AliasedTypeStruct {
+  mixin JsonizeMe;
+  alias Ints = int[];
+  @jsonize Ints i;
+}
+
+struct CustomCtorStruct {
+  mixin JsonizeMe;
+
+  @disable this();
+
+  @jsonize {
+    int i;
+    float f;
+
+    this(int i, float f) {
+      this.i = i;
+      this.f = f;
+    }
+  }
 }

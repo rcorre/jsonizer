@@ -51,6 +51,17 @@ unittest {
 }
 
 unittest {
-  // TODO: currently failing for string serialization, but not JSONValue serialization
-  //runTest!StaticArrayStruct(staticArray!int(1, 2, 3), staticArray!string("a", "b"));
+  runTest!StaticArrayStruct(staticArray!int(1, 2, 3), staticArray!string("a", "b"));
+}
+
+unittest {
+  runTest!NestedStruct(5, "ra", 4.2, [2, 3]);
+}
+
+unittest {
+  runTest!AliasedTypeStruct([2, 3]);
+}
+
+unittest {
+  runTest!CustomCtorStruct(1, 4.2f);
 }
