@@ -134,3 +134,18 @@ struct CustomCtorStruct {
     }
   }
 }
+
+class ParentClass {
+  mixin JsonizeMe;
+  @jsonize int parentVal;
+}
+
+class ChildA : ParentClass {
+  mixin JsonizeMe;
+  @jsonize int a;
+}
+
+class ChildB : ParentClass {
+  mixin JsonizeMe;
+  @jsonize int[] b;
+}
