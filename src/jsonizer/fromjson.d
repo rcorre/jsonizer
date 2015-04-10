@@ -256,10 +256,17 @@ unittest {
 /// Extract a user-defined class or struct from a JSONValue.
 /// See `jsonizer.jsonize` for info on how to mark your own types for serialization.
 T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
+  // if it is a class, try assign from null
   static if (is(T == class)) {
     if (json.type == JSON_TYPE.NULL) { return null; }
   }
-  enforceJsonType!T(json, JSON_TYPE.OBJECT);
+  // if it is a struct, try opAssign
+  else static if (is(typeof(T() == T))) {
+    // try direct assignment (either from opAssign or single-parameter constructor)
+    if (json.type != JSON_TYPE.OBJECT) {
+      invokeOpAssign!T(json);
+    }
+  }
 
   // TODO: typeof(null) -- correct check here? is(T == class)?
   // maybe will not be necessary after rework of dynamic construction (remove use of factory).
@@ -383,6 +390,22 @@ private T invokeDefaultCtor(T)(JSONValue json) {
   }
   obj.populateFromJSON(json);
   return obj;
+}
+
+private T invokeOpAssign(T)(JSONValue json) {
+  T obj;
+  static assert (is(T == struct), "jsonizer only supports opAssign on structs");
+
+  foreach(AssignType ; PrimitivesAssignableTo!T) {
+    try {
+      obj = json.fromJSON!AssignType;
+      return obj;
+    }
+    catch(JsonizeTypeException) { } // json type not appropriate for type of opAssign/ctor
+  }
+
+  // no opAssign succeeded, so throw
+  throw new JsonizeTypeException(typeid(T), json, JSON_TYPE.OBJECT);
 }
 
 private template isJsonized(alias member) {
