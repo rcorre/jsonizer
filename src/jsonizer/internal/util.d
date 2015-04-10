@@ -9,6 +9,7 @@
 module jsonizer.internal.util;
 
 import std.typetuple;
+import std.traits : ParameterTypeTuple, isBuiltinType, isAssignable;
 import jsonizer.internal.attribute;
 
 /// Return members of T that could be serializeable.
@@ -204,4 +205,38 @@ unittest {
 
   static assert( hasDefaultCtor!C1);
   static assert(!hasDefaultCtor!C2);
+}
+
+/// Return all primitive types that are assignable to `T`
+template PrimitivesAssignableTo(T) if (is(T == struct)) {
+  static if (__traits(hasMember, T, "opAssign")) {
+    enum check(K) = isBuiltinType!K && isAssignable!(T, K);
+
+    alias PrimitivesAssignableTo =
+      Filter!(check, staticMap!(ParameterTypeTuple, __traits(getOverloads, T, "opAssign")));
+  }
+  else {
+    alias PrimitivesAssignableTo = TypeTuple!();
+  }
+}
+
+unittest {
+  struct S {
+    void opAssign(int) { }   // valid opAssign
+    void opAssign(float) { } // valid opAssign
+    void opAssign(S rhs) { } // elaborate same-type assign
+  }
+
+  static struct Q {
+    void opAssign(string, string) { }; // not valid opAssign -- not included
+    this(float f) { }                  // assignable from float
+  }
+
+  static struct P {
+    void opAssign(int[]) { }; // array assignment
+  }
+
+  static assert(is(PrimitivesAssignableTo!S == TypeTuple!(int, float)));
+  static assert(is(PrimitivesAssignableTo!Q == TypeTuple!()));
+  static assert(is(PrimitivesAssignableTo!P == TypeTuple!(int[])));
 }
