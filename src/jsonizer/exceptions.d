@@ -73,7 +73,7 @@ class JsonizeMismatchException : JsonizeException {
   }
 
   this(TypeInfo targetType, string[] extraKeys, string[] missingKeys) {
-    super(fmt.format(targetType, extraKeys, missingKeys));
+    super(fmt.format(targetType, missingKeys, extraKeys));
 
     this.targetType  = targetType;
     this.extraKeys   = extraKeys;
