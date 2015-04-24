@@ -134,3 +134,27 @@ struct CustomCtorStruct {
     }
   }
 }
+
+class OuterClass {
+  mixin JsonizeMe;
+
+  @jsonize {
+    int outerVal;
+    InnerClass inner;
+  }
+
+  class InnerClass {
+    mixin JsonizeMe;
+    @jsonize int innerVal;
+
+    override bool opEquals(Object obj) {
+      auto other = cast(InnerClass) obj;
+      return other !is null && this.innerVal == other.innerVal;
+    }
+  }
+
+  override bool opEquals(Object obj) {
+    auto other = cast(OuterClass) obj;
+    return other !is null && this.outerVal == other.outerVal;
+  }
+}
