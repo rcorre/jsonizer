@@ -42,8 +42,15 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
 
         // check if each member is actually a member and is marked with the @jsonize attribute
         foreach(member ; filteredMembers!T) {
-          // find @jsonize, deduce member key
-          enum key = jsonizeKey!(__traits(getMember, this, member), member);
+          // even with filtering members, need to make sure this is a valid member.
+          // Things like nested class types will make it through.
+          static if (__traits(compiles, __traits(getMember, this, member))) {
+            // find @jsonize, deduce member key
+            enum key = jsonizeKey!(__traits(getMember, this, member), member);
+          }
+          else {
+            enum key = null; // not a real member
+          }
 
           static if (key !is null) {
             if (key in keyValPairs) {
@@ -72,7 +79,13 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
           foreach(jsonKey ; json.object.byKey) {
             bool match = false;
             foreach(member ; filteredMembers!T) {
-              enum memberKey = jsonizeKey!(__traits(getMember, this, member), member);
+              static if (__traits(compiles, __traits(getMember, this, member))) {
+                enum memberKey = jsonizeKey!(__traits(getMember, this, member), member);
+              }
+              else {
+                enum memberKey = null;
+              }
+
               if (memberKey == jsonKey) {
                 match = true;
                 break;
@@ -97,7 +110,13 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
       // look for members marked with @jsonize, ignore __ctor
       foreach(member ; filteredMembers!T) {
         // find @jsonize, deduce member key
-        enum key = jsonizeKey!(__traits(getMember, this, member), member);
+        static if (__traits(compiles, __traits(getMember, this, member))) {
+          enum key = jsonizeKey!(__traits(getMember, this, member), member);
+        }
+        else {
+          enum key = null;
+        }
+
         static if(key !is null) {
           auto val = mixin("this." ~ member); // get the member's value
           keyValPairs[key] = toJSON(val);     // add the pair <memberKey> : <memberValue>
