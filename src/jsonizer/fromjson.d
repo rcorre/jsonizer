@@ -305,6 +305,20 @@ T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
   assert(0, "all attempts at deserializing " ~ T.stringof ~ " failed.");
 }
 
+Inner nestedFromJSON(Inner, Outer)(JSONValue json, Outer outer) {
+  static if (is(Inner == class)) {
+    if (json.type == JSON_TYPE.NULL) { return null; }
+  }
+  enforceJsonType!Inner(json, JSON_TYPE.OBJECT);
+
+  static assert(is(typeof(outer.new Inner) == Inner),
+      "Currently only support nested classes with default constructors");
+
+  Inner obj = outer.new Inner;
+  obj.populateFromJSON(json);
+  return obj;
+}
+
 /// Deserialize an instance of a user-defined type from a json object.
 unittest {
   import jsonizer.jsonize;

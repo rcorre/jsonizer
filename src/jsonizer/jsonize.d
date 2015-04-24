@@ -28,6 +28,7 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
     private void _fromJSON(std.json.JSONValue json) {
       // scoped imports include necessary functions without avoid polluting class namespace
       import std.algorithm : filter;
+      import std.traits    : isNested, isAggregateType;
       import jsonizer.fromjson;
       import jsonizer.jsonize    : JsonizeIgnoreExtraKeys;
       import jsonizer.exceptions : JsonizeMismatchException;
@@ -56,7 +57,13 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
             if (key in keyValPairs) {
               ++fieldsFound;
               alias MemberType = typeof(mixin(member));         // deduce member type
-              auto val = fromJSON!MemberType(keyValPairs[key]); // extract value from json
+              // special handling for nested class types
+              static if (isAggregateType!MemberType && isNested!MemberType) {
+                auto val = nestedFromJSON!MemberType(keyValPairs[key], this);
+              }
+              else {
+                auto val = fromJSON!MemberType(keyValPairs[key]); // extract value from json
+              }
               mixin("this." ~ member ~ "= val;");               // assign value to member
             }
             else {
