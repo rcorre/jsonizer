@@ -121,7 +121,12 @@ class JsonizeConstructorException : JsonizeException {
   ///   Ctors = constructors that were attempted
   ///   json = json object being deserialized
   static void doThrow(T, Ctors ...)(JSONValue json) {
-    auto signatures = [staticMap!(ctorSignature, Ctors)].join("\n");
+    static if (Ctors.length > 0) {
+      auto signatures = [staticMap!(ctorSignature, Ctors)].join("\n");
+    }
+    else {
+      auto signatures = "<no @jsonized constructors>";
+    }
 
     throw new JsonizeConstructorException(typeid(T), signatures, json);
   }
