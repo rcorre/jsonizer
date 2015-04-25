@@ -20,11 +20,9 @@ public import jsonizer.internal.attribute;
 ///   ignoreExtra = whether to silently ignore json keys that do not map to serialized members
 mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
   static import std.json;
-  alias T = typeof(this);
 
   // Nested mixins -- these generate private functions to perform serialization/deserialization
   private mixin template MakeDeserializer() {
-    alias T = typeof(this);
     private void _fromJSON(std.json.JSONValue json) {
       // scoped imports include necessary functions without avoid polluting class namespace
       import std.traits          : isNested, isAggregateType;
@@ -33,6 +31,8 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
       import jsonizer.fromjson   : fromJSON, nestedFromJSON, hasCustomJsonCtor;
       import jsonizer.exceptions : JsonizeMismatchException;
       import jsonizer.internal.util;
+
+      alias T = typeof(this);
 
       // TODO: look into moving this up a level and not generating _fromJSON at all.
       static if (!hasCustomJsonCtor!T) {
@@ -113,6 +113,9 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
     private auto _toJSON() {
       import jsonizer.tojson        : toJSON;
       import jsonizer.internal.util : jsonizeKey, filteredMembers;
+
+      alias T = typeof(this);
+
       std.json.JSONValue[string] keyValPairs;
       // look for members marked with @jsonize, ignore __ctor
       foreach(member ; filteredMembers!T) {
@@ -142,8 +145,8 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
 
   // expose the methods generated above by wrapping them in public methods.
   // apply the overload attribute to the public methods if already implemented in base class.
-  static if (is(T == class) &&
-      __traits(hasMember, std.traits.BaseClassesTuple!T[0], "populateFromJSON"))
+  static if (is(typeof(this) == class) &&
+      __traits(hasMember, std.traits.BaseClassesTuple!(typeof(this))[0], "populateFromJSON"))
   {
     override void populateFromJSON(std.json.JSONValue json) {
       GeneratedDeserializer._fromJSON(json);
