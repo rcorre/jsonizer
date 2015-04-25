@@ -187,23 +187,38 @@ unittest {
 }
 
 template hasDefaultCtor(T) {
-  enum hasDefaultCtor = is(typeof(T()) == T) || is(typeof(new T()) == T);
+  import std.traits : isNested;
+  static if (isNested!T) {
+    alias P = typeof(__traits(parent, T).init);
+    enum hasDefaultCtor = is(typeof(P.init.new T()) == T);
+  }
+  else {
+    enum hasDefaultCtor = is(typeof(T()) == T) || is(typeof(new T()) == T);
+  }
+}
+
+version(unittest) {
+  struct S1 { }
+  struct S2 { this(int i) { } }
+  struct S3 { @disable this(); }
+
+  class C1 { }
+  class C2 { this(string s) { } }
+  class C3 { class Inner { } }
+  class C4 { class Inner { this(int i); } }
 }
 
 unittest {
-  static struct S1 { }
-  static struct S2 { this(int i) { } }
-  static struct S3 { @disable this(); }
-
-  static class C1 { }
-  static class C2 { this(string s) { } }
-
   static assert( hasDefaultCtor!S1);
   static assert( hasDefaultCtor!S2);
   static assert(!hasDefaultCtor!S3);
 
   static assert( hasDefaultCtor!C1);
   static assert(!hasDefaultCtor!C2);
+
+  static assert( hasDefaultCtor!C3);
+  static assert( hasDefaultCtor!(C3.Inner));
+  static assert(!hasDefaultCtor!(C4.Inner));
 }
 
 bool hasCustomJsonCtor(T)() {
