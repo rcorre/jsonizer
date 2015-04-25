@@ -205,3 +205,37 @@ unittest {
   static assert( hasDefaultCtor!C1);
   static assert(!hasDefaultCtor!C2);
 }
+
+bool hasCustomJsonCtor(T)() {
+  static if (__traits(hasMember, T, "__ctor")) {
+    alias Overloads = TypeTuple!(__traits(getOverloads, T, "__ctor"));
+    foreach(overload ; Overloads) {
+      static if (staticIndexOf!(jsonize, __traits(getAttributes, overload)) >= 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+unittest {
+  static struct S1 { }
+  static struct S2 { this(int i); }
+  static struct S3 { @jsonize this(int i); }
+  static struct S4 { this(float f); @jsonize this(int i); }
+
+  static assert(!hasCustomJsonCtor!S1);
+  static assert(!hasCustomJsonCtor!S2);
+  static assert( hasCustomJsonCtor!S3);
+  static assert( hasCustomJsonCtor!S4);
+
+  static class C1 { }
+  static class C2 { this() {} }
+  static class C3 { @jsonize this() {} }
+  static class C4 { @jsonize this(int i); this(float f); }
+
+  static assert(!hasCustomJsonCtor!C1);
+  static assert(!hasCustomJsonCtor!C2);
+  static assert( hasCustomJsonCtor!C3);
+  static assert( hasCustomJsonCtor!C4);
+}

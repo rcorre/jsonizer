@@ -480,15 +480,3 @@ unittest {
   import std.typetuple : Filter;
   static assert(Filter!(isJsonized, __traits(getOverloads, Foo, "__ctor")).length == 1);
 }
-
-bool hasCustomJsonCtor(T)() {
-  static if (__traits(hasMember, T, "__ctor")) {
-    alias Overloads = TypeTuple!(__traits(getOverloads, T, "__ctor"));
-    foreach(overload ; Overloads) {
-      static if (staticIndexOf!(jsonize, __traits(getAttributes, overload)) >= 0) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
