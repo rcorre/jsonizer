@@ -256,6 +256,17 @@ unittest {
 /// Extract a user-defined class or struct from a JSONValue.
 /// See `jsonizer.jsonize` for info on how to mark your own types for serialization.
 T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
+  return fromJSONImpl!T(json);
+}
+
+Inner nestedFromJSON(Inner, Outer)(JSONValue json, Outer outer) {
+  return fromJSONImpl!Inner(json, outer);
+}
+
+// Internal implementation of fromJSON for user-defined types
+// If T is a nested class, pass the parent of type P
+// otherwise pass null for the parent
+T fromJSONImpl(T, P)(JSONValue json, P parent = null) if (!isBuiltinType!T) {
   static if (is(T == class)) {
     if (json.type == JSON_TYPE.NULL) { return null; }
   }
@@ -263,7 +274,7 @@ T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
 
   // TODO: typeof(null) -- correct check here? is(T == class)?
   // maybe will not be necessary after rework of dynamic construction (remove use of factory).
-  static if (is(typeof(null) : T) && is(typeof(T.init.populateFromJSON)))
+  static if (!isNested!T && is(typeof(null) : T) && is(typeof(T.init.populateFromJSON)))
   {
     // look for class keyword in json
     auto className = json.fromJSON!string(jsonizeClassKeyword, null);
@@ -284,7 +295,7 @@ T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
     foreach(overload ; Overloads) {
       static if (staticIndexOf!(jsonize, __traits(getAttributes, overload)) >= 0) {
         if (canSatisfyCtor!overload(json)) {
-          return invokeCustomJsonCtor!(T, overload)(json);
+          return invokeCustomJsonCtor!(T, overload)(json, parent);
         }
       }
     }
@@ -299,45 +310,10 @@ T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
 
   // if no @jsonized ctor, try to use a default ctor and populate the fields
   static if(hasDefaultCtor!T) {
-    return invokeDefaultCtor!(T)(json);
+    return invokeDefaultCtor!(T)(json, parent);
   }
 
-  assert(0, "all attempts at deserializing " ~ T.stringof ~ " failed.");
-}
-
-Inner nestedFromJSON(Inner, Outer)(JSONValue json, Outer outer) {
-  static if (is(Inner == class)) {
-    if (json.type == JSON_TYPE.NULL) { return null; }
-  }
-  enforceJsonType!Inner(json, JSON_TYPE.OBJECT);
-
-  // next, try to find a contructor marked with @jsonize and call that
-  static if (__traits(hasMember, Inner, "__ctor")) {
-    alias Overloads = TypeTuple!(__traits(getOverloads, Inner, "__ctor"));
-    foreach(overload ; Overloads) {
-      static if (staticIndexOf!(jsonize, __traits(getAttributes, overload)) >= 0) {
-        if (canSatisfyCtor!overload(json)) {
-          return nestedInvokeCustomJsonCtor!(Inner, Outer, overload)(json, outer);
-        }
-      }
-    }
-
-    // no constructor worked, is default-construction an option?
-    static if(!hasDefaultCtor!Inner) {
-      // not default-constructable, need to fail here
-      alias ctors = Filter!(isJsonized, __traits(getOverloads, Inner, "__ctor"));
-      JsonizeConstructorException.doThrow!(Inner, ctors)(json);
-    }
-  }
-
-  // invoke default ctor if possible
-  static if (is(typeof(outer.new Inner))) {
-    Inner obj = outer.new Inner;
-    obj.populateFromJSON(json);
-    return obj;
-  }
-
-  assert(0, "failed all attempts to deserialize " ~ Inner.stringof);
+  assert(0, "all attempts at deserializing " ~ fullyQualifiedName!T ~ " failed.");
 }
 
 /// Deserialize an instance of a user-defined type from a json object.
@@ -381,7 +357,7 @@ private bool canSatisfyCtor(alias Ctor)(JSONValue json) {
   return true;
 }
 
-private T invokeCustomJsonCtor(T, alias Ctor)(JSONValue json) {
+private T invokeCustomJsonCtor(T, alias Ctor, P)(JSONValue json, P parent) {
   enum params    = ParameterIdentifierTuple!(Ctor);
   alias defaults = ParameterDefaultValueTuple!(Ctor);
   alias Types    = ParameterTypeTuple!(Ctor);
@@ -400,7 +376,10 @@ private T invokeCustomJsonCtor(T, alias Ctor)(JSONValue json) {
       }
     }
   }
-  static if (is(T == class)) {
+  static if (isNested!T) {
+    return constructNested!T(parent, args.expand);
+  }
+  else static if (is(T == class)) {
     return new T(args.expand);
   }
   else {
@@ -408,37 +387,23 @@ private T invokeCustomJsonCtor(T, alias Ctor)(JSONValue json) {
   }
 }
 
-private Inner nestedInvokeCustomJsonCtor(Inner, Outer, alias Ctor)(JSONValue json, Outer outer) {
-  enum params    = ParameterIdentifierTuple!(Ctor);
-  alias defaults = ParameterDefaultValueTuple!(Ctor);
-  alias Types    = ParameterTypeTuple!(Ctor);
-  Tuple!(Types) args;
-  foreach(i ; staticIota!(0, params.length)) {
-    enum paramName = params[i];
-    if (paramName in json.object) {
-      args[i] = json.object[paramName].fromJSON!(Types[i]);
-    }
-    else { // no value specified in json
-      static if (is(defaults[i] == void)) {
-        enforce(0, "parameter " ~ paramName ~ " has no default value and was not specified");
-      }
-      else {
-        args[i] = defaults[i];
-      }
-    }
-  }
-
-  return outer.new Inner(args.expand);
+private Inner constructNested(Inner, Outer, Args ...)(Outer outer, Args args) {
+  return outer.new Inner(args);
 }
 
-private T invokeDefaultCtor(T)(JSONValue json) {
+private T invokeDefaultCtor(T, P)(JSONValue json, P parent) {
   T obj;
-  static if (is(T == struct)) {
+
+  static if (isNested!T) {
+    obj = parent.new T;
+  }
+  else static if (is(T == struct)) {
     obj = T.init;
   }
   else {
     obj = new T;
   }
+
   obj.populateFromJSON(json);
   return obj;
 }
