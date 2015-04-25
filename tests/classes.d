@@ -18,3 +18,10 @@ unittest {
   obj.inner.innerVal = 10;
   runTest(obj);
 }
+
+unittest {
+  auto obj = new OuterClassCtor;
+  obj.outerVal = 5;
+  obj.inner = obj.new InnerClass(10);
+  runTest(obj);
+}

@@ -158,3 +158,24 @@ class OuterClass {
     return other !is null && this.outerVal == other.outerVal;
   }
 }
+
+class OuterClassCtor {
+  mixin JsonizeMe;
+
+  @jsonize {
+    int outerVal;
+    InnerClass inner;
+  }
+
+  class InnerClass {
+    mixin JsonizeMe;
+    @jsonize int i;
+
+    @jsonize this(int i) { this.i = i; }
+  }
+
+  override bool opEquals(Object obj) {
+    auto other = cast(OuterClassCtor) obj;
+    return other !is null && outerVal == other.outerVal && inner.i == other.inner.i;
+  }
+}

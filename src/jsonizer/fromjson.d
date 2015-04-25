@@ -311,12 +311,33 @@ Inner nestedFromJSON(Inner, Outer)(JSONValue json, Outer outer) {
   }
   enforceJsonType!Inner(json, JSON_TYPE.OBJECT);
 
-  static assert(is(typeof(outer.new Inner) == Inner),
-      "Currently only support nested classes with default constructors");
+  // next, try to find a contructor marked with @jsonize and call that
+  static if (__traits(hasMember, Inner, "__ctor")) {
+    alias Overloads = TypeTuple!(__traits(getOverloads, Inner, "__ctor"));
+    foreach(overload ; Overloads) {
+      static if (staticIndexOf!(jsonize, __traits(getAttributes, overload)) >= 0) {
+        if (canSatisfyCtor!overload(json)) {
+          return nestedInvokeCustomJsonCtor!(Inner, Outer, overload)(json, outer);
+        }
+      }
+    }
 
-  Inner obj = outer.new Inner;
-  obj.populateFromJSON(json);
-  return obj;
+    // no constructor worked, is default-construction an option?
+    static if(!hasDefaultCtor!Inner) {
+      // not default-constructable, need to fail here
+      alias ctors = Filter!(isJsonized, __traits(getOverloads, Inner, "__ctor"));
+      JsonizeConstructorException.doThrow!(Inner, ctors)(json);
+    }
+  }
+
+  // invoke default ctor if possible
+  static if (is(typeof(outer.new Inner))) {
+    Inner obj = outer.new Inner;
+    obj.populateFromJSON(json);
+    return obj;
+  }
+
+  assert(0, "failed all attempts to deserialize " ~ Inner.stringof);
 }
 
 /// Deserialize an instance of a user-defined type from a json object.
@@ -385,6 +406,29 @@ private T invokeCustomJsonCtor(T, alias Ctor)(JSONValue json) {
   else {
     return T(args.expand);
   }
+}
+
+private Inner nestedInvokeCustomJsonCtor(Inner, Outer, alias Ctor)(JSONValue json, Outer outer) {
+  enum params    = ParameterIdentifierTuple!(Ctor);
+  alias defaults = ParameterDefaultValueTuple!(Ctor);
+  alias Types    = ParameterTypeTuple!(Ctor);
+  Tuple!(Types) args;
+  foreach(i ; staticIota!(0, params.length)) {
+    enum paramName = params[i];
+    if (paramName in json.object) {
+      args[i] = json.object[paramName].fromJSON!(Types[i]);
+    }
+    else { // no value specified in json
+      static if (is(defaults[i] == void)) {
+        enforce(0, "parameter " ~ paramName ~ " has no default value and was not specified");
+      }
+      else {
+        args[i] = defaults[i];
+      }
+    }
+  }
+
+  return outer.new Inner(args.expand);
 }
 
 private T invokeDefaultCtor(T)(JSONValue json) {

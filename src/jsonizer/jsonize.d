@@ -27,10 +27,10 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
     alias T = typeof(this);
     private void _fromJSON(std.json.JSONValue json) {
       // scoped imports include necessary functions without avoid polluting class namespace
-      import std.algorithm : filter;
-      import std.traits    : isNested, isAggregateType;
-      import jsonizer.fromjson;
+      import std.traits          : isNested, isAggregateType;
+      import std.algorithm       : filter;
       import jsonizer.jsonize    : JsonizeIgnoreExtraKeys;
+      import jsonizer.fromjson   : fromJSON, nestedFromJSON, hasCustomJsonCtor;
       import jsonizer.exceptions : JsonizeMismatchException;
       import jsonizer.internal.util;
 
