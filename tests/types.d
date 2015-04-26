@@ -187,3 +187,30 @@ class OuterClassCtor {
     return other !is null && outerVal == other.outerVal && inner.i == other.inner.i;
   }
 }
+
+class DoubleNested {
+  mixin JsonizeMe;
+
+  @jsonize Inner inner;
+
+  class Inner {
+    mixin JsonizeMe;
+    @jsonize Inner inner;
+
+    class Inner {
+      mixin JsonizeMe;
+      @jsonize int i;
+    }
+  }
+}
+
+class NestedClassArray {
+  mixin JsonizeMe;
+
+  @jsonize Inner[] inners;
+
+  class Inner {
+    mixin JsonizeMe;
+    @jsonize int i;
+  }
+}
