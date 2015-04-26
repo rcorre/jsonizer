@@ -16,28 +16,22 @@ import std.typetuple : staticMap;
 
 /// Base class of any exception thrown by `jsonizer`.
 class JsonizeException : Exception {
-  this(string msg) {
-    super(msg);
-  }
-}
-
-/// Thrown when `fromJSON` cannot convert a `JSONValue` into the requested type.
-class JsonizeTypeException : Exception {
-  private enum fmt =
-    "fromJSON!%s expected json type to be one of %s but got json type %s. json input: %s";
+  private enum fmt = "Failed to convert JSON_TYPE.%s to %s";
 
   const {
-    TypeInfo targetType;  /// Type jsonizer was attempting to deserialize to.
-    JSONValue json;       /// The json value that was being deserialized
-    JSON_TYPE[] expected; /// The JSON_TYPEs that would have been acceptable
+    TypeInfo targetType; /// The type jsonizer was attempting to deserialize to.
+    JSONValue json;      /// The json object that was being deserialized.
   }
 
-  this(TypeInfo targetType, JSONValue json, JSON_TYPE[] expected ...) {
-    super(fmt.format(targetType, expected, json.type, json));
-
+  this(TypeInfo targetType, JSONValue json, string extraMessage = null) {
+    this.json = json;
     this.targetType = targetType;
-    this.json       = json;
-    this.expected   = expected;
+    if (extraMessage is null) {
+      super(fmt.format(json.type, targetType));
+    }
+    else {
+      super(fmt.format(json.type, targetType) ~ "\n" ~ extraMessage);
+    }
   }
 }
 
@@ -46,38 +40,31 @@ unittest {
 
   auto json       = JSONValue(4.2f);
   auto targetType = typeid(bool);
-  auto expected   = [JSON_TYPE.TRUE, JSON_TYPE.FALSE];
 
-  auto e = new JsonizeTypeException(targetType, json, JSON_TYPE.TRUE, JSON_TYPE.FALSE);
+  auto e = new JsonizeException(targetType, json);
 
   assert(e.json == json);
   assert(e.targetType == targetType);
-  assert(e.expected == expected);
-  assert(e.msg.canFind("fromJSON!bool"),
-      "JsonizeTypeException should report type argument");
-  assert(e.msg.canFind("TRUE") && e.msg.canFind("FALSE"),
-      "JsonizeTypeException should report all acceptable json types");
+  assert(e.msg.canFind("bool"), "JsonizeTypeException should report target type");
+  assert(e.msg.canFind("FLOAT"), "JsonizeTypeException should report encountered json type");
 }
 
 /// Thrown when the keys of a json object fail to match up with the members of the target type.
 class JsonizeMismatchException : JsonizeException {
   private enum fmt =
-    "Failed to deserialize %s.\n" ~
     "Missing non-optional members: %s.\n" ~
     "Extra keys in json: %s.\n";
 
   const {
-    TypeInfo targetType;  /// Type jsonizer was attempting to deserialize to.
     string[] extraKeys;   /// keys present in json that do not match up to a member.
     string[] missingKeys; /// non-optional members that were not found in the json.
   }
 
-  this(TypeInfo targetType, string[] extraKeys, string[] missingKeys) {
-    super(fmt.format(targetType, missingKeys, extraKeys));
-
-    this.targetType  = targetType;
+  this(TypeInfo targetType, JSONValue json, string[] extraKeys, string[] missingKeys) {
     this.extraKeys   = extraKeys;
     this.missingKeys = missingKeys;
+    string extraMsg = fmt.format(missingKeys, extraKeys);
+    super(targetType, json, extraMsg);
   }
 }
 
@@ -87,11 +74,12 @@ unittest {
 
   static class MyClass { }
 
+  JSONValue json = ["a": 5];
   auto targetType  = typeid(MyClass);
   auto extraKeys   = [ "who", "what" ];
   auto missingKeys = [ "where" ];
 
-  auto e = new JsonizeMismatchException(targetType, extraKeys, missingKeys);
+  auto e = new JsonizeMismatchException(targetType, json, extraKeys, missingKeys);
   assert(e.targetType == targetType);
   assert(e.extraKeys == extraKeys);
   assert(e.missingKeys == missingKeys);
@@ -107,13 +95,7 @@ unittest {
 class JsonizeConstructorException : JsonizeException {
   private enum fmt =
     "%s has no default constructor, and none of the following constructors could be fulfilled: \n" ~
-    "%s\n" ~
-    "json object:\n %s";
-
-  const {
-    TypeInfo targetType; /// Tye type jsonizer was attempting to deserialize to.
-    JSONValue json;      /// The json value that was being deserialized
-  }
+    "%s\n";
 
   /// Construct and throw a `JsonizeConstructorException`
   /// Params:
@@ -132,10 +114,8 @@ class JsonizeConstructorException : JsonizeException {
   }
 
   private this(TypeInfo targetType, string ctorSignatures, JSONValue json) {
-    super(fmt.format(targetType, ctorSignatures, json));
-
-    this.targetType  = targetType;
-    this.json = json;
+    string extraMsg = fmt.format(targetType, ctorSignatures);
+    super(targetType, json, fmt.format(targetType, json, extraMsg));
   }
 }
 
