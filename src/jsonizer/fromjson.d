@@ -267,14 +267,12 @@ Inner nestedFromJSON(Inner, Outer)(JSONValue json, Outer outer) {
 // If T is a nested class, pass the parent of type P
 // otherwise pass null for the parent
 T fromJSONImpl(T, P)(JSONValue json, P parent = null) if (!isBuiltinType!T) {
-  static if (is(T == class)) {
+  static if (is(typeof(null) : T)) {
     if (json.type == JSON_TYPE.NULL) { return null; }
   }
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
 
-  // TODO: typeof(null) -- correct check here? is(T == class)?
-  // maybe will not be necessary after rework of dynamic construction (remove use of factory).
-  static if (!isNested!T && is(typeof(null) : T) && is(typeof(T.init.populateFromJSON)))
+  static if (!isNested!T && is(T == class) && is(typeof(T.init.populateFromJSON)))
   {
     // look for class keyword in json
     auto className = json.fromJSON!string(jsonizeClassKeyword, null);
