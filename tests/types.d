@@ -135,6 +135,14 @@ struct CustomCtorStruct {
   }
 }
 
+class SimpleClass {
+  mixin JsonizeMe;
+  @jsonize {
+    int i;
+    string s;
+  }
+}
+
 class OuterClass {
   mixin JsonizeMe;
 

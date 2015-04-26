@@ -25,3 +25,7 @@ unittest {
   obj.inner = obj.new InnerClass(10);
   runTest(obj);
 }
+
+unittest {
+  assert("null".fromJSONString!SimpleClass is null);
+}
