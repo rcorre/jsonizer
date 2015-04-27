@@ -256,7 +256,7 @@ unittest {
 /// Extract a user-defined class or struct from a JSONValue.
 /// See `jsonizer.jsonize` for info on how to mark your own types for serialization.
 T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
-  return fromJSONImpl!T(json);
+  return fromJSONImpl!T(json, null);
 }
 
 Inner nestedFromJSON(Inner, Outer)(JSONValue json, Outer outer) {
