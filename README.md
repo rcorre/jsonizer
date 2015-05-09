@@ -224,6 +224,19 @@ If a type has no default (no-args) constructor and jsonizer cannot invoke any co
 with @jsonize, it will throw a `JsonizeConstructorException` which provides info on what
 constructors were attempted.
 
+### Primitive Constructors
+If a type has a constructor marked with @jsonize that takes a single argument,
+it can be constructed from a JSONValue of non-object type. For example, the
+following struct could be constructed from a json integer:
+
+```d
+class IntStruct {
+  mixin JsonizeMe;
+  int i;
+  @jsonize this(int i) { this.i = i; }
+}
+```
+
 ## Factory construction
 This is one of the newer and least tested features of jsonizer.
 Suppose you have the following classes:
