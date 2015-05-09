@@ -187,3 +187,9 @@ class OuterClassCtor {
     return other !is null && outerVal == other.outerVal && inner.i == other.inner.i;
   }
 }
+
+struct GenericStruct(T) {
+  mixin JsonizeMe;
+
+  @jsonize T val;
+}

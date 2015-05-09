@@ -65,3 +65,9 @@ unittest {
 unittest {
   runTest!CustomCtorStruct(1, 4.2f);
 }
+
+unittest {
+  runTest!(GenericStruct!int)(5);
+  runTest!(GenericStruct!string)("s");
+  runTest!(GenericStruct!PrimitiveStruct)(PrimitiveStruct(1, 2UL, true, 0.4f, 0.8, "wat?"));
+}

@@ -110,7 +110,7 @@ mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
   }
 
   private mixin template MakeSerializer() {
-    private auto _toJSON() {
+    private std.json.JSONValue _toJSON() {
       import jsonizer.tojson        : toJSON;
       import jsonizer.internal.util : jsonizeKey, filteredMembers;
 
