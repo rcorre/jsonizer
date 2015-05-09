@@ -193,3 +193,9 @@ struct GenericStruct(T) {
 
   @jsonize T val;
 }
+
+struct IntStruct {
+  mixin JsonizeMe;
+  int i;
+  @jsonize this(int i) { this.i = i; }
+}

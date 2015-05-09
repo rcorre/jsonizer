@@ -270,7 +270,11 @@ T fromJSONImpl(T, P)(JSONValue json, P parent = null) if (!isBuiltinType!T) {
   static if (is(typeof(null) : T)) {
     if (json.type == JSON_TYPE.NULL) { return null; }
   }
-  enforceJsonType!T(json, JSON_TYPE.OBJECT);
+
+  // try constructing from a primitive type using a single-param constructor
+  if (json.type != JSON_TYPE.OBJECT) {
+    return invokePrimitiveCtor!T(json, parent);
+  }
 
   static if (!isNested!T && is(T == class) && is(typeof(T.init.populateFromJSON)))
   {
@@ -417,6 +421,21 @@ private template isJsonized(alias member) {
   }
 
   enum isJsonized = helper();
+}
+
+private T invokePrimitiveCtor(T, P)(JSONValue json, P parent) {
+  static if (__traits(hasMember, T, "__ctor")) {
+    foreach(overload ; __traits(getOverloads, T, "__ctor")) {
+      alias Types = ParameterTypeTuple!overload;
+
+      // look for an @jsonized ctor with a single parameter
+      static if (hasAttribute!(jsonize, overload) && Types.length == 1) {
+        return construct!T(parent, json.fromJSON!(Types[0]));
+      }
+    }
+  }
+
+  throw new JsonizeTypeException(typeid(T), json, JSON_TYPE.OBJECT);
 }
 
 unittest {

@@ -145,8 +145,11 @@ auto getMember(string name)() {
   return (x) => __traits(getMember, x, name);
 }
 
-T construct(T, Params ...)(Params params) {
-  static if (is(typeof(T(params)) == T)) {
+T construct(T, P, Params ...)(P parent, Params params) {
+  static if (!is(P == typeof(null))) {
+    return parent.new T(params);
+  }
+  else static if (is(typeof(T(params)) == T)) {
     return T(params);
   }
   else static if (is(typeof(new T(params)) == T)) {
@@ -163,8 +166,8 @@ unittest {
     int i;
   }
 
-  assert(construct!Foo().i == 0);
-  assert(construct!Foo(4).i == 4);
+  assert(construct!Foo(null).i == 0);
+  assert(construct!Foo(null, 4).i == 4);
   assert(!__traits(compiles, construct!Foo("asd")));
 }
 
@@ -181,9 +184,21 @@ unittest {
     string s;
   }
 
-  assert(construct!Foo(4).i == 4);
-  assert(construct!Foo(4, "asdf").s == "asdf");
+  assert(construct!Foo(null, 4).i == 4);
+  assert(construct!Foo(null, 4, "asdf").s == "asdf");
   assert(!__traits(compiles, construct!Foo("asd")));
+}
+
+unittest {
+  class Foo {
+    class Bar {
+      int i;
+      this(int i) { this.i = i; }
+    }
+  }
+
+  auto f = new Foo;
+  assert(construct!(Foo.Bar)(f, 2).i == 2);
 }
 
 template hasDefaultCtor(T) {

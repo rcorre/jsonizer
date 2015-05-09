@@ -71,3 +71,8 @@ unittest {
   runTest!(GenericStruct!string)("s");
   runTest!(GenericStruct!PrimitiveStruct)(PrimitiveStruct(1, 2UL, true, 0.4f, 0.8, "wat?"));
 }
+
+unittest {
+  auto jstr = "5";
+  assert(jstr.fromJSONString!IntStruct == IntStruct(5));
+}
