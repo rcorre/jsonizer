@@ -18,7 +18,7 @@ public import jsonizer.internal.attribute;
 /// The methods `_toJSON` and `_fromJSON` are generated.
 /// Params:
 ///   ignoreExtra = whether to silently ignore json keys that do not map to serialized members
-mixin template JsonizeMe(alias ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
+mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
   static import std.json;
 
   // Nested mixins -- these generate private functions to perform serialization/deserialization
