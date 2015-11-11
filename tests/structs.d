@@ -59,6 +59,12 @@ unittest {
 }
 
 unittest {
+  auto json = q{{ "inner": { "i": 1 } }};
+  auto nested = json.fromJSONString!Nested2;
+  assert(nested.inner.i == 1);
+}
+
+unittest {
   runTest!AliasedTypeStruct([2, 3]);
 }
 

@@ -113,6 +113,16 @@ struct NestedStruct {
   }
 }
 
+struct Nested2 {
+  mixin JsonizeMe;
+  @jsonize Inner inner;
+
+  private struct Inner {
+    mixin JsonizeMe;
+    @jsonize int i;
+  }
+}
+
 struct AliasedTypeStruct {
   mixin JsonizeMe;
   alias Ints = int[];
