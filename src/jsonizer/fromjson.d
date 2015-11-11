@@ -411,16 +411,10 @@ private T invokeDefaultCtor(T, P)(JSONValue json, P parent) {
 }
 
 private template isJsonized(alias member) {
-  static bool helper() {
-    foreach(attr ; __traits(getAttributes, member)) {
-      static if (is(attr == jsonize) || is(typeof(attr) == jsonize)) {
-        return true;
-      }
-    }
-    return false;
-  }
+  enum test(alias attr) = is(attr == jsonize) ||
+                          is(typeof(attr) == jsonize);
 
-  enum isJsonized = helper();
+  enum isJsonized = anySatisfy!(test, __traits(getAttributes, member));
 }
 
 private T invokePrimitiveCtor(T, P)(JSONValue json, P parent) {
@@ -435,7 +429,7 @@ private T invokePrimitiveCtor(T, P)(JSONValue json, P parent) {
     }
   }
 
-  throw new JsonizeTypeException(typeid(T), json, JSON_TYPE.OBJECT);
+  assert(0, "No primitive ctor for type " ~ T.stringof);
 }
 
 unittest {

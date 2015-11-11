@@ -236,16 +236,17 @@ unittest {
   static assert(!hasDefaultCtor!(C4.Inner));
 }
 
-bool hasCustomJsonCtor(T)() {
+template hasCustomJsonCtor(T) {
   static if (__traits(hasMember, T, "__ctor")) {
     alias Overloads = TypeTuple!(__traits(getOverloads, T, "__ctor"));
-    foreach(overload ; Overloads) {
-      static if (staticIndexOf!(jsonize, __traits(getAttributes, overload)) >= 0) {
-        return true;
-      }
-    }
+
+    enum test(alias fn) = staticIndexOf!(jsonize, __traits(getAttributes, fn)) >= 0;
+
+    enum hasCustomJsonCtor = anySatisfy!(test, Overloads);
   }
-  return false;
+  else {
+    enum hasCustomJsonCtor = false;
+  }
 }
 
 unittest {
