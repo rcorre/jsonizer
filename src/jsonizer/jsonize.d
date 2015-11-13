@@ -520,8 +520,8 @@ unittest {
   assert(deserialized.val == orig.val);
 }
 
-/// unfortunately these test classes must be implemented outside the unittest
-/// as Object.factory (and ClassInfo.find) cannot work with nested classes
+// unfortunately these test classes must be implemented outside the unittest
+// as Object.factory (and ClassInfo.find) cannot work with nested classes
 private {
   class TestComponent {
     mixin JsonizeMe;

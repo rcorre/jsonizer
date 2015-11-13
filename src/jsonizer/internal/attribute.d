@@ -75,7 +75,6 @@ enum JsonizeIgnoreExtraKeys {
   yes /// fail if the json object contains a keys that does not map to a serialized field
 }
 
-
 /// Use of `JsonizeIgnoreExtraKeys`:
 unittest {
   import std.json            : parseJSON;
@@ -115,4 +114,17 @@ unittest {
   assert(ex.targetType == typeid(VeryStrict));
   assert(ex.missingKeys == [ ]);
   assert(ex.extraKeys == [ "s" ]);
+}
+
+struct JsonizeOptions {
+  /**
+   * The key of a field identifying the D type of a json object.
+   *
+   * This is useful when deserializing a collection of some type `T`, where the
+   * actual instances may be different subtypes of `T`.
+   *
+   * If this key is found in the json object, `fromJSON` will try to factory
+   * construct an object of the type identified.
+   */
+  string classKey = "class";
 }

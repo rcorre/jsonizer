@@ -22,9 +22,6 @@ import jsonizer.exceptions : JsonizeTypeException, JsonizeConstructorException;
 import jsonizer.internal.attribute;
 import jsonizer.internal.util;
 
-/// json member used to map a json object to a D type
-enum jsonizeClassKeyword = "class";
-
 private void enforceJsonType(T)(JSONValue json, JSON_TYPE[] expected ...) {
   if (!expected.canFind(json.type)) {
     throw new JsonizeTypeException(typeid(T), json, expected);
@@ -255,18 +252,24 @@ unittest {
 
 /// Extract a user-defined class or struct from a JSONValue.
 /// See `jsonizer.jsonize` for info on how to mark your own types for serialization.
-T fromJSON(T)(JSONValue json) if (!isBuiltinType!T) {
-  return fromJSONImpl!T(json, null);
+T fromJSON(T, JsonizeOptions options = JsonizeOptions.init)(JSONValue json)
+  if (!isBuiltinType!T)
+{
+  return fromJSONImpl!(options, T)(json, null);
 }
 
-Inner nestedFromJSON(Inner, Outer)(JSONValue json, Outer outer) {
-  return fromJSONImpl!Inner(json, outer);
+Inner nestedFromJSON(Inner, Outer, JsonizeOptions options = JsonizeOptions.init)
+(JSONValue json, Outer outer)
+{
+  return fromJSONImpl!(options, Inner)(json, outer);
 }
 
 // Internal implementation of fromJSON for user-defined types
 // If T is a nested class, pass the parent of type P
 // otherwise pass null for the parent
-T fromJSONImpl(T, P)(JSONValue json, P parent = null) if (!isBuiltinType!T) {
+T fromJSONImpl(JsonizeOptions options, T, P)(JSONValue json, P parent = null)
+  if (!isBuiltinType!T)
+{
   static if (is(typeof(null) : T)) {
     if (json.type == JSON_TYPE.NULL) { return null; }
   }
@@ -279,7 +282,7 @@ T fromJSONImpl(T, P)(JSONValue json, P parent = null) if (!isBuiltinType!T) {
   static if (!isNested!T && is(T == class) && is(typeof(T.init.populateFromJSON)))
   {
     // look for class keyword in json
-    auto className = json.fromJSON!string(jsonizeClassKeyword, null);
+    auto className = json.fromJSON!string(options.classKey, null);
     // try creating an instance with Object.factory
     if (className !is null) {
       auto obj = Object.factory(className);
