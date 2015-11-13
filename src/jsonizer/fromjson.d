@@ -22,40 +22,90 @@ import jsonizer.exceptions : JsonizeTypeException, JsonizeConstructorException;
 import jsonizer.internal.attribute;
 import jsonizer.internal.util;
 
-private void enforceJsonType(T)(JSONValue json, JSON_TYPE[] expected ...) {
-  if (!expected.canFind(json.type)) {
-    throw new JsonizeTypeException(typeid(T), json, expected);
-  }
-}
-
-unittest {
-  import std.exception : assertThrown, assertNotThrown;
-  with (JSON_TYPE) {
-    assertThrown!JsonizeTypeException(enforceJsonType!int(JSONValue("hi"), INTEGER, UINTEGER));
-    assertThrown!JsonizeTypeException(enforceJsonType!(bool[string])(JSONValue([ 5 ]), OBJECT));
-    assertNotThrown(enforceJsonType!int(JSONValue(5), INTEGER, UINTEGER));
-    assertNotThrown(enforceJsonType!(bool[string])(JSONValue(["key": true]), OBJECT));
-  }
-}
-
-deprecated("use fromJSON instead") {
-  /// Deprecated: use `fromJSON` instead.
-  T extract(T)(JSONValue json) {
-    return json.fromJSON!T;
-  }
-}
-
-/// Extract a boolean from a json value.
-T fromJSON(T : bool)(JSONValue json) {
-  if (json.type == JSON_TYPE.TRUE) {
-    return true;
-  }
-  else if (json.type == JSON_TYPE.FALSE) {
-    return false;
+/// See `jsonizer.jsonize` for info on how to mark your own types for serialization.
+T fromJSON(T, JsonizeOptions options = JsonizeOptions.init)(JSONValue json) {
+  // enumeration
+  static if (is(T == enum)) {
+    enforceJsonType!T(json, JSON_TYPE.STRING);
+    return to!T(json.str);
   }
 
-  // expected 'true' or 'false'
-  throw new JsonizeTypeException(typeid(bool), json, JSON_TYPE.TRUE, JSON_TYPE.FALSE);
+  // boolean
+  else static if (is(T : bool)) {
+    if (json.type == JSON_TYPE.TRUE)
+      return true;
+    else if (json.type == JSON_TYPE.FALSE)
+      return false;
+
+    // expected 'true' or 'false'
+    throw new JsonizeTypeException(typeid(bool), json, JSON_TYPE.TRUE, JSON_TYPE.FALSE);
+  }
+
+  // string
+  else static if (is(T : string)) {
+    if (json.type == JSON_TYPE.NULL) { return null; }
+    enforceJsonType!T(json, JSON_TYPE.STRING);
+    return cast(T) json.str;
+  }
+
+  // numeric
+  else static if (is(T : real)) {
+    switch(json.type) {
+      case JSON_TYPE.FLOAT:
+        return cast(T) json.floating;
+      case JSON_TYPE.INTEGER:
+        return cast(T) json.integer;
+      case JSON_TYPE.UINTEGER:
+        return cast(T) json.uinteger;
+      case JSON_TYPE.STRING:
+        enforce(json.str.isNumeric, format("tried to extract %s from json string %s", T.stringof, json.str));
+        return to!T(json.str); // try to parse string as int
+      default:
+    }
+
+    throw new JsonizeTypeException(typeid(bool), json,
+                                   JSON_TYPE.FLOAT, JSON_TYPE.INTEGER, JSON_TYPE.UINTEGER, JSON_TYPE.STRING);
+  }
+
+  // array
+  else static if (isArray!T) {
+    if (json.type == JSON_TYPE.NULL) { return T.init; }
+    enforceJsonType!T(json, JSON_TYPE.ARRAY);
+    alias ElementType = ForeachType!T;
+    T vals;
+    foreach(idx, val ; json.array) {
+      static if (isStaticArray!T) {
+        vals[idx] = val.fromJSON!ElementType;
+      }
+      else {
+        vals ~= val.fromJSON!ElementType;
+      }
+    }
+    return vals;
+  }
+
+  // associative array
+  else static if (isAssociativeArray!T) {
+    static assert(is(KeyType!T : string), "toJSON requires string keys for associative array");
+    if (json.type == JSON_TYPE.NULL) { return null; }
+    enforceJsonType!T(json, JSON_TYPE.OBJECT);
+    alias ValType = ValueType!T;
+    T map;
+    foreach(key, val ; json.object) {
+      map[key] = fromJSON!ValType(val);
+    }
+    return map;
+  }
+
+  // user-defined class or struct
+  else static if (!isBuiltinType!T) {
+    return fromJSONImpl!(options, T)(json, null);
+  }
+
+  // by the time we get here, we've tried pretty much everything
+  else {
+    static assert(0, "fromJSON can't handle a " ~ T.stringof);
+  }
 }
 
 /// Extract booleans from json values.
@@ -64,35 +114,9 @@ unittest {
   assert(JSONValue(true).fromJSON!bool == true);
 }
 
-/// Extract a string type from a json value.
-T fromJSON(T : string)(JSONValue json) {
-  if (json.type == JSON_TYPE.NULL) { return null; }
-  enforceJsonType!T(json, JSON_TYPE.STRING);
-  return cast(T) json.str;
-}
-
 /// Extract a string from a json string.
 unittest {
   assert(JSONValue("asdf").fromJSON!string == "asdf");
-}
-
-/// Extract a numeric type from a json value.
-T fromJSON(T : real)(JSONValue json) if (!is(T == enum)) {
-  switch(json.type) {
-    case JSON_TYPE.FLOAT:
-      return cast(T) json.floating;
-    case JSON_TYPE.INTEGER:
-      return cast(T) json.integer;
-    case JSON_TYPE.UINTEGER:
-      return cast(T) json.uinteger;
-    case JSON_TYPE.STRING:
-      enforce(json.str.isNumeric, format("tried to extract %s from json string %s", T.stringof, json.str));
-      return to!T(json.str); // try to parse string as int
-    default:
-  }
-
-  throw new JsonizeTypeException(typeid(bool), json,
-      JSON_TYPE.FLOAT, JSON_TYPE.INTEGER, JSON_TYPE.UINTEGER, JSON_TYPE.STRING);
 }
 
 /// Extract various numeric types.
@@ -105,52 +129,16 @@ unittest {
   assert(JSONValue("4").fromJSON!long   == 4L);
 }
 
-/// Extract an enumerated type from a json value.
-T fromJSON(T)(JSONValue json) if (is(T == enum)) {
-  enforceJsonType!T(json, JSON_TYPE.STRING);
-  return to!T(json.str);
-}
-
 /// Convert a json string into an enum value.
 unittest {
   enum Category { one, two }
   assert(JSONValue("one").fromJSON!Category == Category.one);
 }
 
-/// Extract an array from a JSONValue.
-T fromJSON(T)(JSONValue json) if (isArray!T && !isSomeString!(T)) {
-  if (json.type == JSON_TYPE.NULL) { return T.init; }
-  enforceJsonType!T(json, JSON_TYPE.ARRAY);
-  alias ElementType = ForeachType!T;
-  T vals;
-  foreach(idx, val ; json.array) {
-    static if (isStaticArray!T) {
-      vals[idx] = val.fromJSON!ElementType;
-    }
-    else {
-      vals ~= val.fromJSON!ElementType;
-    }
-  }
-  return vals;
-}
-
 /// Convert a json array into an array.
 unittest {
   auto a = [ 1, 2, 3 ];
   assert(JSONValue(a).fromJSON!(int[]) == a);
-}
-
-/// Extract an associative array from a JSONValue.
-T fromJSON(T)(JSONValue json) if (isAssociativeArray!T) {
-  static assert(is(KeyType!T : string), "toJSON requires string keys for associative array");
-  if (json.type == JSON_TYPE.NULL) { return null; }
-  enforceJsonType!T(json, JSON_TYPE.OBJECT);
-  alias ValType = ValueType!T;
-  T map;
-  foreach(key, val ; json.object) {
-    map[key] = fromJSON!ValType(val);
-  }
-  return map;
 }
 
 /// Convert a json object to an associative array.
@@ -160,12 +148,13 @@ unittest {
 }
 
 /// Extract a value from a json object by its key.
-T fromJSON(T)(JSONValue json, string key) {
+T fromJSON(T, JsonizeOptions options = JsonizeOptions.init)(JSONValue json, string key) {
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   enforce(key in json.object, "tried to extract non-existent key " ~ key ~ " from JSONValue");
-  return fromJSON!T(json.object[key]);
+  return fromJSON!(T, options)(json.object[key]);
 }
 
+/// Directly extract values from an object by their keys.
 unittest {
   auto aa = ["a": 1, "b": 2];
   auto json = JSONValue(aa);
@@ -173,11 +162,39 @@ unittest {
   assert(json.fromJSON!ulong("b") == 2L);
 }
 
+/// Deserialize an instance of a user-defined type from a json object.
+unittest {
+  import jsonizer.jsonize;
+  import jsonizer.tojson;
+
+  static struct Foo {
+    mixin JsonizeMe;
+
+    @jsonize {
+      int i;
+      string[] a;
+    }
+  }
+
+  auto jstr = q{
+    {
+      "i": 1,
+        "a": [ "a", "b" ]
+    }
+  };
+
+  // you could use `readJSON` instead of `parseJSON.fromJSON`
+  auto foo = jstr.parseJSON.fromJSON!Foo;
+  assert(foo.i == 1);
+  assert(foo.a == [ "a", "b" ]);
+}
+
 /// Extract a value from a json object by its key, return `defaultVal` if key not found.
-T fromJSON(T)(JSONValue json, string key, T defaultVal) {
+T fromJSON(T, JsonizeOptions options = JsonizeOptions.init)(JSONValue json, string key, T defaultVal) {
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   return (key in json.object) ? fromJSON!T(json.object[key]) : defaultVal;
 }
+
 
 /// Substitute default values when keys aren't present.
 unittest {
@@ -195,6 +212,7 @@ T fromJSONString(T)(string json) {
   return fromJSON!T(json.parseJSON);
 }
 
+/// Use `fromJSONString` to parse from a json `string` rather than a `JSONValue`
 unittest {
   assert(fromJSONString!(int[])("[1, 2, 3]") == [1, 2, 3]);
 }
@@ -250,26 +268,39 @@ unittest {
   assert(json.array[2].integer == 3);
 }
 
-/// Extract a user-defined class or struct from a JSONValue.
-/// See `jsonizer.jsonize` for info on how to mark your own types for serialization.
-T fromJSON(T, JsonizeOptions options = JsonizeOptions.init)(JSONValue json)
-  if (!isBuiltinType!T)
-{
-  return fromJSONImpl!(options, T)(json, null);
+deprecated("use fromJSON instead") {
+  /// Deprecated: use `fromJSON` instead.
+  T extract(T)(JSONValue json) {
+    return json.fromJSON!T;
+  }
 }
 
-Inner nestedFromJSON(Inner, Outer, JsonizeOptions options = JsonizeOptions.init)
-(JSONValue json, Outer outer)
-{
+// really should be private, but gets used from the mixin
+Inner nestedFromJSON(Inner, Outer, JsonizeOptions options = JsonizeOptions.init)(JSONValue json, Outer outer) {
   return fromJSONImpl!(options, Inner)(json, outer);
+}
+
+private:
+void enforceJsonType(T)(JSONValue json, JSON_TYPE[] expected ...) {
+  if (!expected.canFind(json.type)) {
+    throw new JsonizeTypeException(typeid(T), json, expected);
+  }
+}
+
+unittest {
+  import std.exception : assertThrown, assertNotThrown;
+  with (JSON_TYPE) {
+    assertThrown!JsonizeTypeException(enforceJsonType!int(JSONValue("hi"), INTEGER, UINTEGER));
+    assertThrown!JsonizeTypeException(enforceJsonType!(bool[string])(JSONValue([ 5 ]), OBJECT));
+    assertNotThrown(enforceJsonType!int(JSONValue(5), INTEGER, UINTEGER));
+    assertNotThrown(enforceJsonType!(bool[string])(JSONValue(["key": true]), OBJECT));
+  }
 }
 
 // Internal implementation of fromJSON for user-defined types
 // If T is a nested class, pass the parent of type P
 // otherwise pass null for the parent
-T fromJSONImpl(JsonizeOptions options, T, P)(JSONValue json, P parent = null)
-  if (!isBuiltinType!T)
-{
+T fromJSONImpl(JsonizeOptions options, T, P)(JSONValue json, P parent = null) {
   static if (is(typeof(null) : T)) {
     if (json.type == JSON_TYPE.NULL) { return null; }
   }
@@ -321,35 +352,8 @@ T fromJSONImpl(JsonizeOptions options, T, P)(JSONValue json, P parent = null)
   assert(0, "all attempts at deserializing " ~ fullyQualifiedName!T ~ " failed.");
 }
 
-/// Deserialize an instance of a user-defined type from a json object.
-unittest {
-  import jsonizer.jsonize;
-  import jsonizer.tojson;
-
-  static struct Foo {
-    mixin JsonizeMe;
-
-    @jsonize {
-      int i;
-      string[] a;
-    }
-  }
-
-  auto jstr = q{
-    {
-      "i": 1,
-      "a": [ "a", "b" ]
-    }
-  };
-
-  // you could use `readJSON` instead of `parseJSON.fromJSON`
-  auto foo = jstr.parseJSON.fromJSON!Foo;
-  assert(foo.i == 1);
-  assert(foo.a == [ "a", "b" ]);
-}
-
 // return true if keys can satisfy parameter names
-private bool canSatisfyCtor(alias Ctor)(JSONValue json) {
+bool canSatisfyCtor(alias Ctor)(JSONValue json) {
   auto obj = json.object;
   alias Params   = ParameterIdentifierTuple!Ctor;
   alias Types    = ParameterTypeTuple!Ctor;
@@ -362,7 +366,7 @@ private bool canSatisfyCtor(alias Ctor)(JSONValue json) {
   return true;
 }
 
-private T invokeCustomJsonCtor(T, alias Ctor, P)(JSONValue json, P parent) {
+T invokeCustomJsonCtor(T, alias Ctor, P)(JSONValue json, P parent) {
   enum params    = ParameterIdentifierTuple!(Ctor);
   alias defaults = ParameterDefaultValueTuple!(Ctor);
   alias Types    = ParameterTypeTuple!(Ctor);
@@ -392,11 +396,11 @@ private T invokeCustomJsonCtor(T, alias Ctor, P)(JSONValue json, P parent) {
   }
 }
 
-private Inner constructNested(Inner, Outer, Args ...)(Outer outer, Args args) {
+Inner constructNested(Inner, Outer, Args ...)(Outer outer, Args args) {
   return outer.new Inner(args);
 }
 
-private T invokeDefaultCtor(T, P)(JSONValue json, P parent) {
+T invokeDefaultCtor(T, P)(JSONValue json, P parent) {
   T obj;
 
   static if (isNested!T) {
@@ -413,26 +417,11 @@ private T invokeDefaultCtor(T, P)(JSONValue json, P parent) {
   return obj;
 }
 
-private template isJsonized(alias member) {
+template isJsonized(alias member) {
   enum test(alias attr) = is(attr == jsonize) ||
-                          is(typeof(attr) == jsonize);
+    is(typeof(attr) == jsonize);
 
   enum isJsonized = anySatisfy!(test, __traits(getAttributes, member));
-}
-
-private T invokePrimitiveCtor(T, P)(JSONValue json, P parent) {
-  static if (__traits(hasMember, T, "__ctor")) {
-    foreach(overload ; __traits(getOverloads, T, "__ctor")) {
-      alias Types = ParameterTypeTuple!overload;
-
-      // look for an @jsonized ctor with a single parameter
-      static if (hasAttribute!(jsonize, overload) && Types.length == 1) {
-        return construct!T(parent, json.fromJSON!(Types[0]));
-      }
-    }
-  }
-
-  assert(0, "No primitive ctor for type " ~ T.stringof);
 }
 
 unittest {
@@ -458,4 +447,19 @@ unittest {
 
   import std.typetuple : Filter;
   static assert(Filter!(isJsonized, __traits(getOverloads, Foo, "__ctor")).length == 1);
+}
+
+T invokePrimitiveCtor(T, P)(JSONValue json, P parent) {
+  static if (__traits(hasMember, T, "__ctor")) {
+    foreach(overload ; __traits(getOverloads, T, "__ctor")) {
+      alias Types = ParameterTypeTuple!overload;
+
+      // look for an @jsonized ctor with a single parameter
+      static if (hasAttribute!(jsonize, overload) && Types.length == 1) {
+        return construct!T(parent, json.fromJSON!(Types[0]));
+      }
+    }
+  }
+
+  assert(0, "No primitive ctor for type " ~ T.stringof);
 }
