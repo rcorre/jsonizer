@@ -417,12 +417,7 @@ T invokeDefaultCtor(T, P)(JSONValue json, P parent) {
   return obj;
 }
 
-template isJsonized(alias member) {
-  enum test(alias attr) = is(attr == jsonize) ||
-    is(typeof(attr) == jsonize);
-
-  enum isJsonized = anySatisfy!(test, __traits(getAttributes, member));
-}
+alias isJsonized(alias member) = hasUDA!(member, jsonize);
 
 unittest {
   static class Foo {
