@@ -23,7 +23,7 @@ import jsonizer.internal.attribute;
 import jsonizer.internal.util;
 
 /// See `jsonizer.jsonize` for info on how to mark your own types for serialization.
-T fromJSON(T, JsonizeOptions options = JsonizeOptions.init)(JSONValue json) {
+T fromJSON(T)(JSONValue json, JsonizeOptions options = JsonizeOptions.init) {
   // enumeration
   static if (is(T == enum)) {
     enforceJsonType!T(json, JSON_TYPE.STRING);
@@ -75,10 +75,10 @@ T fromJSON(T, JsonizeOptions options = JsonizeOptions.init)(JSONValue json) {
     T vals;
     foreach(idx, val ; json.array) {
       static if (isStaticArray!T) {
-        vals[idx] = val.fromJSON!ElementType;
+        vals[idx] = val.fromJSON!ElementType(options);
       }
       else {
-        vals ~= val.fromJSON!ElementType;
+        vals ~= val.fromJSON!ElementType(options);
       }
     }
     return vals;
@@ -92,14 +92,14 @@ T fromJSON(T, JsonizeOptions options = JsonizeOptions.init)(JSONValue json) {
     alias ValType = ValueType!T;
     T map;
     foreach(key, val ; json.object) {
-      map[key] = fromJSON!ValType(val);
+      map[key] = fromJSON!ValType(val, options);
     }
     return map;
   }
 
   // user-defined class or struct
   else static if (!isBuiltinType!T) {
-    return fromJSONImpl!(options, T)(json, null);
+    return fromJSONImpl!T(json, null, options);
   }
 
   // by the time we get here, we've tried pretty much everything
@@ -148,10 +148,13 @@ unittest {
 }
 
 /// Extract a value from a json object by its key.
-T fromJSON(T, JsonizeOptions options = JsonizeOptions.init)(JSONValue json, string key) {
+T fromJSON(T)(JSONValue json,
+              string key,
+              JsonizeOptions options = JsonizeOptions.init)
+{
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   enforce(key in json.object, "tried to extract non-existent key " ~ key ~ " from JSONValue");
-  return fromJSON!(T, options)(json.object[key]);
+  return fromJSON!T(json.object[key], options);
 }
 
 /// Directly extract values from an object by their keys.
@@ -190,7 +193,11 @@ unittest {
 }
 
 /// Extract a value from a json object by its key, return `defaultVal` if key not found.
-T fromJSON(T, JsonizeOptions options = JsonizeOptions.init)(JSONValue json, string key, T defaultVal) {
+T fromJSON(T)(JSONValue json,
+              string key,
+              T defaultVal,
+              JsonizeOptions options = JsonizeOptions.init)
+{
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   return (key in json.object) ? fromJSON!T(json.object[key]) : defaultVal;
 }
@@ -208,8 +215,8 @@ unittest {
 /// Params:
 ///    T    = target type
 ///    json = json string to deserialize
-T fromJSONString(T)(string json) {
-  return fromJSON!T(json.parseJSON);
+T fromJSONString(T)(string json, JsonizeOptions options = JsonizeOptions.init) {
+  return fromJSON!T(json.parseJSON, options);
 }
 
 /// Use `fromJSONString` to parse from a json `string` rather than a `JSONValue`
@@ -221,9 +228,9 @@ unittest {
 /// Params:
 ///   path = filesystem path to json file
 /// Returns: object parsed from json file
-T readJSON(T)(string path) {
+T readJSON(T)(string path, JsonizeOptions options = JsonizeOptions.init) {
   auto json = parseJSON(readText(path));
-  return fromJSON!T(json);
+  return fromJSON!T(json, options);
 }
 
 /// Read a json file directly into a specified D type.
@@ -276,8 +283,11 @@ deprecated("use fromJSON instead") {
 }
 
 // really should be private, but gets used from the mixin
-Inner nestedFromJSON(Inner, Outer, JsonizeOptions options = JsonizeOptions.init)(JSONValue json, Outer outer) {
-  return fromJSONImpl!(options, Inner)(json, outer);
+Inner nestedFromJSON(Inner, Outer)(JSONValue json,
+                                   Outer outer,
+                                   JsonizeOptions options = JsonizeOptions.init)
+{
+  return fromJSONImpl!Inner(json, outer, options);
 }
 
 private:
@@ -300,7 +310,7 @@ unittest {
 // Internal implementation of fromJSON for user-defined types
 // If T is a nested class, pass the parent of type P
 // otherwise pass null for the parent
-T fromJSONImpl(JsonizeOptions options, T, P)(JSONValue json, P parent = null) {
+T fromJSONImpl(T, P)(JSONValue json, P parent, JsonizeOptions options) {
   static if (is(typeof(null) : T)) {
     if (json.type == JSON_TYPE.NULL) { return null; }
   }
@@ -320,7 +330,7 @@ T fromJSONImpl(JsonizeOptions options, T, P)(JSONValue json, P parent = null) {
       assert(obj !is null, "failed to Object.factory " ~ className);
       auto instance = cast(T) obj;
       assert(instance !is null, "failed to cast " ~ className ~ " to " ~ T.stringof);
-      instance.populateFromJSON(json);
+      instance.populateFromJSON(json, options);
       return instance;
     }
   }

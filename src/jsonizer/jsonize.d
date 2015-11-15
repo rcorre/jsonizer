@@ -23,7 +23,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
 
   // Nested mixins -- these generate private functions to perform serialization/deserialization
   private mixin template MakeDeserializer() {
-    private void _fromJSON(std.json.JSONValue json) {
+    private void _fromJSON(std.json.JSONValue json, JsonizeOptions options) {
       // scoped imports include necessary functions without avoid polluting class namespace
       import std.traits          : isNested, isAggregateType;
       import std.algorithm       : filter;
@@ -59,10 +59,13 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
               alias MemberType = typeof(mixin(member));         // deduce member type
               // special handling for nested class types
               static if (isAggregateType!MemberType && isNested!MemberType) {
-                auto val = nestedFromJSON!MemberType(keyValPairs[key], this);
+                auto val = nestedFromJSON!MemberType(keyValPairs[key],
+                                                     this,
+                                                     options);
               }
               else {
-                auto val = fromJSON!MemberType(keyValPairs[key]); // extract value from json
+                // extract value from json
+                auto val = fromJSON!MemberType(keyValPairs[key], options);
               }
               mixin("this." ~ member ~ "= val;");               // assign value to member
             }
@@ -148,8 +151,10 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
   static if (is(typeof(this) == class) &&
       __traits(hasMember, std.traits.BaseClassesTuple!(typeof(this))[0], "populateFromJSON"))
   {
-    override void populateFromJSON(std.json.JSONValue json) {
-      GeneratedDeserializer._fromJSON(json);
+    override void populateFromJSON(std.json.JSONValue json,
+                                   JsonizeOptions options = JsonizeOptions.init)
+    {
+      GeneratedDeserializer._fromJSON(json, options);
     }
 
     override std.json.JSONValue convertToJSON() {
@@ -157,8 +162,10 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
     }
   }
   else {
-    void populateFromJSON(std.json.JSONValue json) {
-      GeneratedDeserializer._fromJSON(json);
+    void populateFromJSON(std.json.JSONValue json,
+                          JsonizeOptions options = JsonizeOptions.init)
+    {
+      GeneratedDeserializer._fromJSON(json, options);
     }
 
     std.json.JSONValue convertToJSON() {
@@ -569,6 +576,41 @@ unittest {
   auto a = cast(TestCompA) data[0];
   auto b = cast(TestCompB) data[1];
 
+  assert(a !is null && a.c == 1 && a.a == 5);
+  assert(b !is null && b.c == 2 && b.b == "hello");
+}
+
+/// type inference with custom type key
+unittest {
+  import std.string : format;
+  import std.traits : fullyQualifiedName;
+  import jsonizer   : fromJSONString;
+
+  // use "type" instead of "class" to identify dynamic type
+  JsonizeOptions options;
+  options.classKey = "type";
+
+  // need to use these because unittest is assigned weird name
+  // normally would just be "modulename.classname"
+  string classKeyA = fullyQualifiedName!TestCompA;
+  string classKeyB = fullyQualifiedName!TestCompB;
+
+  auto data = `[
+    {
+      "type": "%s",
+      "c": 1,
+      "a": 5
+    },
+    {
+      "type": "%s",
+      "c": 2,
+      "b": "hello"
+    }
+  ]`.format(classKeyA, classKeyB)
+  .fromJSONString!(TestComponent[])(options);
+
+  auto a = cast(TestCompA) data[0];
+  auto b = cast(TestCompB) data[1];
   assert(a !is null && a.c == 1 && a.a == 5);
   assert(b !is null && b.c == 2 && b.b == "hello");
 }
