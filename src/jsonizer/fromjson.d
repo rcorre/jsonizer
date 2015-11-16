@@ -23,7 +23,9 @@ import jsonizer.internal.attribute;
 import jsonizer.internal.util;
 
 /// See `jsonizer.jsonize` for info on how to mark your own types for serialization.
-T fromJSON(T)(JSONValue json, JsonizeOptions options = JsonizeOptions.init) {
+T fromJSON(T)(JSONValue json,
+              in ref JsonizeOptions options = JsonizeOptions.defaults)
+{
   // enumeration
   static if (is(T == enum)) {
     enforceJsonType!T(json, JSON_TYPE.STRING);
@@ -150,7 +152,7 @@ unittest {
 /// Extract a value from a json object by its key.
 T fromJSON(T)(JSONValue json,
               string key,
-              JsonizeOptions options = JsonizeOptions.init)
+              in ref JsonizeOptions options = JsonizeOptions.defaults)
 {
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   enforce(key in json.object, "tried to extract non-existent key " ~ key ~ " from JSONValue");
@@ -196,7 +198,7 @@ unittest {
 T fromJSON(T)(JSONValue json,
               string key,
               T defaultVal,
-              JsonizeOptions options = JsonizeOptions.init)
+              in ref JsonizeOptions options = JsonizeOptions.defaults)
 {
   enforceJsonType!T(json, JSON_TYPE.OBJECT);
   return (key in json.object) ? fromJSON!T(json.object[key]) : defaultVal;
@@ -215,7 +217,9 @@ unittest {
 /// Params:
 ///    T    = target type
 ///    json = json string to deserialize
-T fromJSONString(T)(string json, JsonizeOptions options = JsonizeOptions.init) {
+T fromJSONString(T)(string json,
+                    in ref JsonizeOptions options = JsonizeOptions.defaults)
+{
   return fromJSON!T(json.parseJSON, options);
 }
 
@@ -228,7 +232,9 @@ unittest {
 /// Params:
 ///   path = filesystem path to json file
 /// Returns: object parsed from json file
-T readJSON(T)(string path, JsonizeOptions options = JsonizeOptions.init) {
+T readJSON(T)(string path,
+              in ref JsonizeOptions options = JsonizeOptions.defaults)
+{
   auto json = parseJSON(readText(path));
   return fromJSON!T(json, options);
 }
@@ -285,7 +291,7 @@ deprecated("use fromJSON instead") {
 // really should be private, but gets used from the mixin
 Inner nestedFromJSON(Inner, Outer)(JSONValue json,
                                    Outer outer,
-                                   JsonizeOptions options = JsonizeOptions.init)
+                                   in ref JsonizeOptions options)
 {
   return fromJSONImpl!Inner(json, outer, options);
 }
@@ -310,7 +316,7 @@ unittest {
 // Internal implementation of fromJSON for user-defined types
 // If T is a nested class, pass the parent of type P
 // otherwise pass null for the parent
-T fromJSONImpl(T, P)(JSONValue json, P parent, JsonizeOptions options) {
+T fromJSONImpl(T, P)(JSONValue json, P parent, in ref JsonizeOptions options) {
   static if (is(typeof(null) : T)) {
     if (json.type == JSON_TYPE.NULL) { return null; }
   }
@@ -356,7 +362,7 @@ T fromJSONImpl(T, P)(JSONValue json, P parent, JsonizeOptions options) {
 
   // if no @jsonized ctor, try to use a default ctor and populate the fields
   static if(hasDefaultCtor!T) {
-    return invokeDefaultCtor!(T)(json, parent);
+    return invokeDefaultCtor!T(json, parent, options);
   }
 
   assert(0, "all attempts at deserializing " ~ fullyQualifiedName!T ~ " failed.");
@@ -410,7 +416,7 @@ Inner constructNested(Inner, Outer, Args ...)(Outer outer, Args args) {
   return outer.new Inner(args);
 }
 
-T invokeDefaultCtor(T, P)(JSONValue json, P parent) {
+T invokeDefaultCtor(T, P)(JSONValue json, P parent, JsonizeOptions options) {
   T obj;
 
   static if (isNested!T) {
@@ -423,7 +429,7 @@ T invokeDefaultCtor(T, P)(JSONValue json, P parent) {
     obj = new T;
   }
 
-  obj.populateFromJSON(json);
+  obj.populateFromJSON(json, options);
   return obj;
 }
 

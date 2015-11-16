@@ -23,7 +23,9 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
 
   // Nested mixins -- these generate private functions to perform serialization/deserialization
   private mixin template MakeDeserializer() {
-    private void _fromJSON(std.json.JSONValue json, JsonizeOptions options) {
+    private void _fromJSON(std.json.JSONValue json,
+                           in ref JsonizeOptions options)
+    {
       // scoped imports include necessary functions without avoid polluting class namespace
       import std.traits          : isNested, isAggregateType;
       import std.algorithm       : filter;
@@ -152,7 +154,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
       __traits(hasMember, std.traits.BaseClassesTuple!(typeof(this))[0], "populateFromJSON"))
   {
     override void populateFromJSON(std.json.JSONValue json,
-                                   JsonizeOptions options = JsonizeOptions.init)
+                                   in ref JsonizeOptions options)
     {
       GeneratedDeserializer._fromJSON(json, options);
     }
@@ -163,7 +165,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
   }
   else {
     void populateFromJSON(std.json.JSONValue json,
-                          JsonizeOptions options = JsonizeOptions.init)
+                          in ref JsonizeOptions options)
     {
       GeneratedDeserializer._fromJSON(json, options);
     }

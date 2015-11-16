@@ -117,6 +117,7 @@ unittest {
 }
 
 struct JsonizeOptions {
+  static immutable defaults = JsonizeOptions.init;
   /**
    * The key of a field identifying the D type of a json object.
    *
