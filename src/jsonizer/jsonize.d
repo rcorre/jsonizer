@@ -14,10 +14,17 @@ import jsonizer.internal.util;
 
 public import jsonizer.internal.attribute;
 
-/// Generate json (de)serialization methods for the type this is mixed in to.
-/// The methods `_toJSON` and `_fromJSON` are generated.
-/// Params:
-///   ignoreExtra = whether to silently ignore json keys that do not map to serialized members
+/**
+ * Enable `fromJSON`/`toJSON` support for the type this is mixed in to.
+ *
+ * In order for fields to be (de)serialized, they must be annotated with
+ * `jsonize` (in addition to having the mixin within the type).
+ *
+ * This mixin will _not_ recursively apply to nested types. If a nested type is
+ * to be serialized, it must have `JsonizeMe` mixed in as well.
+ * Params:
+ *   ignoreExtra = whether to silently ignore json keys that do not map to serialized members
+ */
 mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
   static import std.json;
 

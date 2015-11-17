@@ -116,16 +116,26 @@ unittest {
   assert(ex.extraKeys == [ "s" ]);
 }
 
+/**
+ * Customize the behavior of `toJSON` and `fromJSON`.
+ */
 struct JsonizeOptions {
+  /**
+   * A default-constructed `JsonizeOptions`.
+   * Used implicilty if no explicit options are given to `fromJSON` or `toJSON`.
+   */
   static immutable defaults = JsonizeOptions.init;
+
   /**
    * The key of a field identifying the D type of a json object.
+   *
+   * If this key is found in the json object, `fromJSON` will try to factory
+   * construct an object of the type identified.
    *
    * This is useful when deserializing a collection of some type `T`, where the
    * actual instances may be different subtypes of `T`.
    *
-   * If this key is found in the json object, `fromJSON` will try to factory
-   * construct an object of the type identified.
+   * Setting `classKey` to null will disable factory construction.
    */
   string classKey = "class";
 }

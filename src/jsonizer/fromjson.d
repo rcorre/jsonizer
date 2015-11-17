@@ -22,7 +22,15 @@ import jsonizer.exceptions : JsonizeTypeException, JsonizeConstructorException;
 import jsonizer.internal.attribute;
 import jsonizer.internal.util;
 
-/// See `jsonizer.jsonize` for info on how to mark your own types for serialization.
+/**
+ * Deserialize json into a value of type `T`.
+ *
+ * Params:
+ *  T       = Target type. can be any primitive/builtin D type, or any
+ *            user-defined type using the `JsonizeMe` mixin.
+ *  json    = `JSONValue` to deserialize.
+ *  options = configures the deserialization behavior.
+ */
 T fromJSON(T)(JSONValue json,
               in ref JsonizeOptions options = JsonizeOptions.defaults)
 {
@@ -149,7 +157,35 @@ unittest {
   assert(JSONValue(aa).fromJSON!(int[string]) == aa);
 }
 
-/// Extract a value from a json object by its key.
+/// Convert a json object to a user-defined type.
+/// See the docs for `JsonizeMe` for more detailed examples.
+unittest {
+  import jsonizer;
+  static struct MyStruct {
+    mixin JsonizeMe;
+
+    @jsonize int i;
+    @jsonize string s;
+  }
+
+  auto json = `{ "i": 5, "s": "tally-ho!" }`.parseJSON;
+  auto val = json.fromJSON!MyStruct;
+  assert(val.i == 5);
+  assert(val.s == "tally-ho!");
+}
+
+/**
+ * Extract a value from a json object by its key.
+ *
+ * Throws if `json` is not of `JSON_TYPE.OBJECT` or the key does not exist.
+ *
+ * Params:
+ *  T       = Target type. can be any primitive/builtin D type, or any
+ *            user-defined type using the `JsonizeMe` mixin.
+ *  json    = `JSONValue` to deserialize.
+ *  key     = key of desired value within the object.
+ *  options = configures the deserialization behavior.
+ */
 T fromJSON(T)(JSONValue json,
               string key,
               in ref JsonizeOptions options = JsonizeOptions.defaults)
@@ -194,7 +230,20 @@ unittest {
   assert(foo.a == [ "a", "b" ]);
 }
 
-/// Extract a value from a json object by its key, return `defaultVal` if key not found.
+/**
+ * Extract a value from a json object by its key.
+ *
+ * Throws if `json` is not of `JSON_TYPE.OBJECT`.
+ * Return `defaultVal` if the key does not exist.
+ *
+ * Params:
+ *  T          = Target type. can be any primitive/builtin D type, or any
+ *               user-defined type using the `JsonizeMe` mixin.
+ *  json       = `JSONValue` to deserialize.
+ *  key        = key of desired value within the object.
+ *  defaultVal = value to return if key is not found
+ *  options    = configures the deserialization behavior.
+ */
 T fromJSON(T)(JSONValue json,
               string key,
               T defaultVal,
@@ -213,10 +262,14 @@ unittest {
   assert(json.fromJSON!int("c", 7) == 7);
 }
 
-/// Convert a json value in its string representation into a type `T`
-/// Params:
-///    T    = target type
-///    json = json string to deserialize
+/*
+ * Convert a json value in its string representation into a type `T`
+ * Params:
+ *  T       = Target type. can be any primitive/builtin D type, or any
+ *            user-defined type using the `JsonizeMe` mixin.
+ *  json    = JSON-formatted string to deserialize.
+ *  options = configures the deserialization behavior.
+ */
 T fromJSONString(T)(string json,
                     in ref JsonizeOptions options = JsonizeOptions.defaults)
 {
@@ -228,10 +281,14 @@ unittest {
   assert(fromJSONString!(int[])("[1, 2, 3]") == [1, 2, 3]);
 }
 
-/// Read a json-constructable object from a file.
-/// Params:
-///   path = filesystem path to json file
-/// Returns: object parsed from json file
+/**
+ * Read a json-constructable object from a file.
+ * Params:
+ *  T       = Target type. can be any primitive/builtin D type, or any
+ *            user-defined type using the `JsonizeMe` mixin.
+ *  path    = filesystem path to json file
+ *  options = configures the deserialization behavior.
+ */
 T readJSON(T)(string path,
               in ref JsonizeOptions options = JsonizeOptions.defaults)
 {
@@ -254,10 +311,11 @@ unittest {
   assert(file.readJSON!(int[]) == [ 1, 2, 3 ]);
 }
 
-/// Read contents of a json file directly into a JSONValue.
-/// Params:
-///   path = filesystem path to json file
-/// Returns: a `JSONValue` parsed from the file
+/**
+ * Read the contents of a json file directly into a `JSONValue`.
+ * Params:
+ *   path = filesystem path to json file
+ */
 auto readJSON(string path) {
   return parseJSON(readText(path));
 }
