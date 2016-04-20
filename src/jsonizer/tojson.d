@@ -16,6 +16,11 @@ import std.exception : enforce;
 import std.typecons : staticIota, Flag;
 
 // Primitive Type Conversions -----------------------------------------------------------
+/// convert a JSONValue to a JSONValue (identity)
+JSONValue toJSON(JSONValue val) {
+  return val;
+}
+
 /// convert a bool to a JSONValue
 JSONValue toJSON(T : bool)(T val) {
   return JSONValue(val);

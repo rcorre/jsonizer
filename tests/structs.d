@@ -1,3 +1,5 @@
+import std.json;
+
 import tests.types;
 import jsonizer.fromjson;
 import jsonizer.tojson;
@@ -81,4 +83,11 @@ unittest {
 unittest {
   auto jstr = "5";
   assert(jstr.fromJSONString!IntStruct == IntStruct(5));
+}
+
+unittest {
+  assert(`{"i": 5, "j": 7}`.fromJSONString!JSONValueStruct ==
+         JSONValueStruct(5, JSONValue(7)));
+  assert(`{"i": 5, "j": "hi"}`.fromJSONString!JSONValueStruct ==
+         JSONValueStruct(5, JSONValue("hi")));
 }

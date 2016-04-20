@@ -34,8 +34,12 @@ import jsonizer.internal.util;
 T fromJSON(T)(JSONValue json,
               in ref JsonizeOptions options = JsonizeOptions.defaults)
 {
+  // JSONValue -- identity
+  static if (is(T == JSONValue))
+      return json;
+
   // enumeration
-  static if (is(T == enum)) {
+  else static if (is(T == enum)) {
     enforceJsonType!T(json, JSON_TYPE.STRING);
     return to!T(json.str);
   }

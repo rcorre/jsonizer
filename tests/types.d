@@ -1,6 +1,7 @@
 /// Types defined for unit testing.
 module tests.types;
 
+import std.json;
 import jsonizer.jsonize;
 
 version (unittest) {
@@ -142,6 +143,15 @@ struct CustomCtorStruct {
       this.i = i;
       this.f = f;
     }
+  }
+}
+
+struct JSONValueStruct {
+  mixin JsonizeMe;
+
+  @jsonize {
+    int i;
+    JSONValue j;
   }
 }
 
