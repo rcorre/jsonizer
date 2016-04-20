@@ -2,8 +2,8 @@
   * Defines the exceptions that Jsonizer may throw.
   *
   * Authors: <a href="https://github.com/rcorre">rcorre</a>
-	* License: <a href="http://opensource.org/licenses/MIT">MIT</a>
-	* Copyright: Copyright © 2015, rcorre
+  * License: <a href="http://opensource.org/licenses/MIT">MIT</a>
+  * Copyright: Copyright © 2015, rcorre
   * Date: 3/24/15
   */
 module jsonizer.exceptions;
