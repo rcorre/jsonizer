@@ -35,9 +35,18 @@ struct jsonize {
 
 /// whether to fail deserialization if field is not found in json
 enum JsonizeOptional {
-  unspecified, /// optional status not specified (currently defaults to `no`)
-  no,          /// field is required -- fail deserialization if not found in json
-  yes          /// field is optional -- deserialization can continue if field is not found in json
+  /// optional status not specified (currently defaults to `no`)
+  unspecified,
+
+  /// field is required -- fail deserialization if not found in json
+  no,
+
+  /// field is optional -- deserialization can continue if field is not found in json
+  yes,
+
+  /++ field is full in out optional -- deserialization as if 'yes',
+      serialization skips if value == typeof(value).init +/
+  yesio
 }
 
 /// Use of `JsonizeOptional`:

@@ -124,7 +124,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
   private mixin template MakeSerializer() {
     private std.json.JSONValue _toJSON() {
       import jsonizer.tojson        : toJSON;
-      import jsonizer.internal.util : jsonizeKey, filteredMembers;
+      import jsonizer.internal.util : jsonizeKey, filteredMembers, isOptional, isInitial;
 
       alias T = typeof(this);
 
@@ -141,7 +141,9 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
 
         static if(key !is null) {
           auto val = mixin("this." ~ member); // get the member's value
-          keyValPairs[key] = toJSON(val);     // add the pair <memberKey> : <memberValue>
+          if (!(isOptional!(__traits(getMember, this, member),true) && isInitial(val))) {
+            keyValPairs[key] = toJSON(val);     // add the pair <memberKey> : <memberValue>
+          }
         }
       }
       // construct the json object
@@ -723,4 +725,29 @@ unittest {
   auto a = fromJSON!A(json);
 
   assert(a.a == 5);
+}
+
+unittest {
+  import std.json : parseJSON;
+
+  static struct A
+  {
+    mixin JsonizeMe;
+    @jsonize int a;
+    @jsonize(JsonizeOptional.yesio) string attr;
+    @jsonize(JsonizeOptional.yes) string attr2;
+  }
+
+  auto a = A(5);
+  assert( a == a.toJSON.fromJSON!A );
+  assert( a.toJSON == `{ "a":5, "attr2":"" }`.parseJSON );
+  a.attr = "hello";
+  assert( a == a.toJSON.fromJSON!A );
+  assert( a.toJSON == `{ "a":5, "attr":"hello", "attr2":"" }`.parseJSON );
+  a.attr2 = "world";
+  assert( a == a.toJSON.fromJSON!A );
+  assert( a.toJSON == `{ "a":5, "attr":"hello", "attr2":"world" }`.parseJSON );
+  a.attr = "";
+  assert( a == a.toJSON.fromJSON!A );
+  assert( a.toJSON == `{ "a":5, "attr2":"world" }`.parseJSON );
 }

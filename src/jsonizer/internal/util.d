@@ -53,7 +53,7 @@ template jsonizeKey(T, string unused) {
 }
 
 /// return true if member is marked with @jsonize(JsonizeOptional.yes).
-template isOptional(alias member) {
+template isOptional(alias member,bool io=false) {
   alias found = Filter!(isValueAttribute, findAttribute!(jsonize, member));
 
   // find an explicit JsonizeOptional parameter.
@@ -69,7 +69,13 @@ template isOptional(alias member) {
     }
     else {
       // specified either yes or no, use that value
-      enum helper = (attrs[$ - 1].optional == JsonizeOptional.yes);
+      static if (io) {
+        enum helper = (attrs[$ - 1].optional == JsonizeOptional.yesio);
+      }
+      else {
+        enum helper = (attrs[$ - 1].optional == JsonizeOptional.yes) ||
+                        (attrs[$ - 1].optional == JsonizeOptional.yesio);
+      }
     }
   }
 
@@ -86,6 +92,18 @@ template findAttribute(alias attr, alias sym) {
   }
 
   alias findAttribute = Filter!(match, __traits(getAttributes, sym));
+}
+
+/// Check is value is equal an initial of this type value
+bool isInitial(T)( T val )
+{
+  static if (is(typeof(val == T.init))) {
+    return val == T.init;
+  }
+  else static if (is(typeof(val is T.init))) {
+    return val is T.init;
+  }
+  else static assert(0,"don't know how checks this types");
 }
 
 unittest {
