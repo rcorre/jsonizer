@@ -46,7 +46,7 @@ enum JsonizeOptional {
 
   /++ field is full in out optional -- deserialization as if 'yes',
       serialization skips if value == typeof(value).init +/
-  yesio
+  anyway
 }
 
 /// Use of `JsonizeOptional`:

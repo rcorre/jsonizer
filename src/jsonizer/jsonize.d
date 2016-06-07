@@ -734,20 +734,49 @@ unittest {
   {
     mixin JsonizeMe;
     @jsonize int a;
-    @jsonize(JsonizeOptional.yesio) string attr;
+    @jsonize(JsonizeOptional.anyway) string attr;
     @jsonize(JsonizeOptional.yes) string attr2;
   }
 
   auto a = A(5);
-  assert( a == a.toJSON.fromJSON!A );
-  assert( a.toJSON == `{ "a":5, "attr2":"" }`.parseJSON );
+  assert(a == a.toJSON.fromJSON!A);
+  assert(a.toJSON == `{ "a":5, "attr2":"" }`.parseJSON);
+  assert(a.toJSON != `{ "a":5, "attr":"", "attr2":"" }`.parseJSON);
   a.attr = "hello";
-  assert( a == a.toJSON.fromJSON!A );
-  assert( a.toJSON == `{ "a":5, "attr":"hello", "attr2":"" }`.parseJSON );
+  assert(a == a.toJSON.fromJSON!A);
+  assert(a.toJSON == `{ "a":5, "attr":"hello", "attr2":"" }`.parseJSON);
   a.attr2 = "world";
-  assert( a == a.toJSON.fromJSON!A );
-  assert( a.toJSON == `{ "a":5, "attr":"hello", "attr2":"world" }`.parseJSON );
+  assert(a == a.toJSON.fromJSON!A);
+  assert(a.toJSON == `{ "a":5, "attr":"hello", "attr2":"world" }`.parseJSON);
   a.attr = "";
-  assert( a == a.toJSON.fromJSON!A );
-  assert( a.toJSON == `{ "a":5, "attr2":"world" }`.parseJSON );
+  assert(a == a.toJSON.fromJSON!A);
+  assert(a.toJSON == `{ "a":5, "attr2":"world" }`.parseJSON);
+}
+
+unittest {
+  import std.json : parseJSON;
+
+  static struct A
+  {
+    mixin JsonizeMe;
+    @jsonize int a;
+    @disable int opEquals( ref const(A) );
+  }
+
+  static assert(!is(typeof(A.init==A.init)));
+
+  static struct B
+  {
+    mixin JsonizeMe;
+    @jsonize(JsonizeOptional.anyway) A a;
+  }
+
+  auto b = B(A(10));
+  assert(b.a.a == 10);
+  assert(b.a.a == (b.toJSON.fromJSON!B).a.a);
+  assert(b.toJSON == `{"a":{"a":10}}`.parseJSON);
+  b.a.a = 0;
+  assert(b.a.a == int.init );
+  assert(b.a.a == (b.toJSON.fromJSON!B).a.a);
+  assert(b.toJSON == "{}".parseJSON);
 }

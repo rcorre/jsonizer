@@ -70,11 +70,11 @@ template isOptional(alias member,bool io=false) {
     else {
       // specified either yes or no, use that value
       static if (io) {
-        enum helper = (attrs[$ - 1].optional == JsonizeOptional.yesio);
+        enum helper = (attrs[$ - 1].optional == JsonizeOptional.anyway);
       }
       else {
         enum helper = (attrs[$ - 1].optional == JsonizeOptional.yes) ||
-                        (attrs[$ - 1].optional == JsonizeOptional.yesio);
+                      (attrs[$ - 1].optional == JsonizeOptional.anyway);
       }
     }
   }

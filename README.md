@@ -148,16 +148,16 @@ class TotalMess {
 ```
 As the above shows, parameters may be passed in any order to @jsonize.
 
-If you don't want serialize optional member, you can use `JsonizeOptional.yesio`.
+If you don't want serialize optional member, you can use `JsonizeOptional.anyway`.
 
 ```d
 class MyClass {
   @jsonize int i;
-  @jsonize(JsonizeOptional.yesio) float f;
+  @jsonize(JsonizeOptional.anyway) float f;
 }
 ```
 
-If `JsonizeOptional.yesio` member equals initial value of this type it don't serialize.
+If `JsonizeOptional.anyway` member equals initial value of this type it don't serialize.
 
 ### Extra Members
 If you would like to ensure that every entry in a json object is being
