@@ -134,8 +134,8 @@ auto ex = collectException!JsonizeMismatchException(`{ "q": 5.0 }`.parseJSON.fro
 assert(ex.missingKeys == [ "i" ]);
 ```
 
-The way @jsonize takes parameters is rather flexible. While I can't condone making your class look
-like the below example, it demonstrates the flexibility of @jsonize:
+The way `@jsonize` takes parameters is rather flexible. While I can't condone making your class look
+like the below example, it demonstrates the flexibility of `@jsonize`:
 
 ```d
 class TotalMess {
@@ -148,9 +148,8 @@ class TotalMess {
 ```
 As the above shows, parameters may be passed in any order to @jsonize.
 
-If you want to serialize only non-default (`val != typeof(val).init`) fields, you can
+If you want to serialize only non-default (`val != typeof(val).init`) fields, you can use `JsonizeOut`
 
-use `JsonizeOut``
 ```d
 class TotalMess {
   @jsonize(JsonizeOut.optional) {
@@ -170,7 +169,7 @@ class TotalMess {
 ```
 
 If `Jsonize.optional` member equals initial value of this type it don't serialize, and if
-it not presents in input json it don't trhow exception.
+it not presents in input json it don't throw exception.
 
 
 ### Extra Members
