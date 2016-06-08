@@ -52,34 +52,75 @@ template jsonizeKey(T, string unused) {
   enum jsonizeKey = null;
 }
 
-/// return true if member is marked with @jsonize(JsonizeOptional.yes).
-template isOptional(alias member,bool io=false) {
+/// return JsonizeIn value for member.
+template performIn(alias member) {
   alias found = Filter!(isValueAttribute, findAttribute!(jsonize, member));
 
-  // find an explicit JsonizeOptional parameter.
+  // find an explicit JsonizeIn parameter.
   // start with the attribute closest to the member and move outwards.
   template helper(attrs ...) {
     static if (attrs.length == 0) {
-      // recursion endpoint, no JsonizeOptional found.
+      // recursion endpoint, no JsonizeIn found.
       enum helper = false;
     }
-    else static if (attrs[$ - 1].optional == JsonizeOptional.unspecified) {
-      // unspecified, recurse to less-nested attribute
-      enum helper = helper!(attrs[0 .. $ - 1]);
-    }
     else {
-      // specified either yes or no, use that value
-      static if (io) {
-        enum helper = (attrs[$ - 1].optional == JsonizeOptional.anyway);
+      enum perform_in_val = attrs[$ - 1].perform_in;
+      static if (perform_in_val == JsonizeIn.unspecified) {
+        // unspecified, recurse to less-nested attribute
+        enum helper = helper!(attrs[0 .. $ - 1]);
       }
       else {
-        enum helper = (attrs[$ - 1].optional == JsonizeOptional.yes) ||
-                      (attrs[$ - 1].optional == JsonizeOptional.anyway);
+        enum helper = perform_in_val;
       }
     }
   }
 
-  enum isOptional = helper!(found);
+  enum performIn = helper!found;
+}
+
+unittest {
+  @jsonize(JsonizeIn.always) int a;
+  static assert( performIn!(a) == JsonizeIn.always );
+}
+
+unittest {
+  @jsonize(Jsonize.always) @jsonize(JsonizeIn.optional) int a;
+  static assert( performIn!(a) == JsonizeIn.optional );
+  @jsonize(Jsonize.optional) @jsonize(JsonizeIn.never) int b;
+  static assert( performIn!(b) == JsonizeIn.never );
+}
+
+/// return JsonizeOut value for member.
+template performOut(alias member) {
+  alias found = Filter!(isValueAttribute, findAttribute!(jsonize, member));
+
+  // find an explicit JsonizeOut parameter.
+  // start with the attribute closest to the member and move outwards.
+  template helper(attrs ...) {
+    static if (attrs.length == 0) {
+      // recursion endpoint, no JsonizeOut found.
+      enum helper = false;
+    }
+    else {
+      enum perform_out_val = attrs[$ - 1].perform_out;
+      static if (perform_out_val == JsonizeOut.unspecified) {
+        // unspecified, recurse to less-nested attribute
+        enum helper = helper!(attrs[0 .. $ - 1]);
+      }
+      else {
+        enum helper = perform_out_val;
+      }
+    }
+  }
+
+  enum performOut = helper!found;
+}
+
+unittest {
+  @jsonize(Jsonize.always) @jsonize(JsonizeOut.optional) int a;
+  static assert( performOut!(a) == JsonizeOut.optional );
+  @jsonize(Jsonize.optional) @jsonize(JsonizeOut.never) int b;
+  static assert( performOut!(b) == JsonizeOut.never );
 }
 
 /// Get a tuple of all attributes on `sym` matching `attr`.

@@ -63,23 +63,26 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
           }
 
           static if (key !is null) {
+            enum perform_in_val = performIn!(__traits(getMember, this, member));
             if (key in keyValPairs) {
               ++fieldsFound;
               alias MemberType = typeof(mixin(member));         // deduce member type
               // special handling for nested class types
-              static if (isAggregateType!MemberType && isNested!MemberType) {
-                auto val = nestedFromJSON!MemberType(keyValPairs[key],
-                                                     this,
-                                                     options);
+              static if (perform_in_val != JsonizeIn.never)
+              {
+                static if (isAggregateType!MemberType && isNested!MemberType) {
+                    auto val = nestedFromJSON!MemberType(keyValPairs[key], this, options);
+                }
+                else {
+                    // extract value from json
+                    auto val = fromJSON!MemberType(keyValPairs[key], options);
+                }
+                mixin("this." ~ member ~ "= val;");               // assign value to member
               }
-              else {
-                // extract value from json
-                auto val = fromJSON!MemberType(keyValPairs[key], options);
-              }
-              mixin("this." ~ member ~ "= val;");               // assign value to member
             }
             else {
-              static if (!isOptional!(__traits(getMember, this, member))) {
+              static if (perform_in_val == JsonizeIn.always ||
+                         perform_in_val == JsonizeIn.unspecified) { // unspecified is always by default
                 missingKeys ~= key;
               }
             }
@@ -124,7 +127,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
   private mixin template MakeSerializer() {
     private std.json.JSONValue _toJSON() {
       import jsonizer.tojson        : toJSON;
-      import jsonizer.internal.util : jsonizeKey, filteredMembers, isOptional, isInitial;
+      import jsonizer.internal.util : jsonizeKey, filteredMembers, performOut, isInitial;
 
       alias T = typeof(this);
 
@@ -140,9 +143,15 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
         }
 
         static if(key !is null) {
-          auto val = mixin("this." ~ member); // get the member's value
-          if (!(isOptional!(__traits(getMember, this, member),true) && isInitial(val))) {
-            keyValPairs[key] = toJSON(val);     // add the pair <memberKey> : <memberValue>
+          enum perform_out_val = performOut!(__traits(getMember, this, member));
+          static if (perform_out_val != JsonizeOut.never)
+          {
+            auto val = mixin("this." ~ member); // get the member's value
+            if ((perform_out_val == JsonizeOut.optional && !isInitial(val)) ||
+                perform_out_val == JsonizeOut.always ||
+                perform_out_val == JsonizeOut.unspecified) { // unspecified is always by default
+              keyValPairs[key] = toJSON(val);     // add the pair <memberKey> : <memberValue>
+            }
           }
         }
       }
@@ -734,8 +743,8 @@ unittest {
   {
     mixin JsonizeMe;
     @jsonize int a;
-    @jsonize(JsonizeOptional.anyway) string attr;
-    @jsonize(JsonizeOptional.yes) string attr2;
+    @jsonize(Jsonize.optional) string attr;
+    @jsonize(JsonizeIn.optional) string attr2;
   }
 
   auto a = A(5);
@@ -768,7 +777,7 @@ unittest {
   static struct B
   {
     mixin JsonizeMe;
-    @jsonize(JsonizeOptional.anyway) A a;
+    @jsonize(Jsonize.optional) A a;
   }
 
   auto b = B(A(10));
@@ -779,4 +788,34 @@ unittest {
   assert(b.a.a == int.init );
   assert(b.a.a == (b.toJSON.fromJSON!B).a.a);
   assert(b.toJSON == "{}".parseJSON);
+}
+
+unittest {
+  import std.json : parseJSON;
+  import std.exception;
+
+  static struct T
+  {
+    mixin JsonizeMe;
+    @jsonize(Jsonize.optional)
+    {
+      int a;
+      @jsonize(JsonizeOut.never,JsonizeIn.always) string b;
+      @jsonize(JsonizeOut.always,JsonizeIn.never) string c;
+    }
+  }
+
+  auto t = T(5);
+  assertThrown(t.toJSON.fromJSON!T);
+  assert(t.toJSON == `{ "a":5, "c":"" }`.parseJSON);
+  t.b = "hello";
+  assert(t == `{ "a":5, "b":"hello" }`.parseJSON.fromJSON!T);
+  t.c = "world";
+  assert(t.toJSON == `{ "a":5, "c":"world" }`.parseJSON);
+  t.a = 0;
+  assert(t.toJSON == `{ "c":"world" }`.parseJSON);
+  auto t2 = `{ "b":"hello", "c":"okda" }`.parseJSON.fromJSON!T;
+  assert(t.a == t2.a);
+  assert(t.b == t2.b);
+  assert(t2.c == "");
 }
