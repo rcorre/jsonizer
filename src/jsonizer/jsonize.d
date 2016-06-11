@@ -68,7 +68,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
               ++fieldsFound;
               alias MemberType = typeof(mixin(member));         // deduce member type
               // special handling for nested class types
-              static if (perform_in_val != JsonizeIn.never)
+              static if (perform_in_val != JsonizeIn.no)
               {
                 static if (isAggregateType!MemberType && isNested!MemberType) {
                     auto val = nestedFromJSON!MemberType(keyValPairs[key], this, options);
@@ -81,8 +81,8 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
               }
             }
             else {
-              static if (perform_in_val == JsonizeIn.always ||
-                         perform_in_val == JsonizeIn.unspecified) { // unspecified is always by default
+              static if (perform_in_val == JsonizeIn.yes ||
+                         perform_in_val == JsonizeIn.unspecified) { // unspecified is yes by default
                 missingKeys ~= key;
               }
             }
@@ -144,12 +144,12 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
 
         static if(key !is null) {
           enum perform_out_val = performOut!(__traits(getMember, this, member));
-          static if (perform_out_val != JsonizeOut.never)
+          static if (perform_out_val != JsonizeOut.no)
           {
             auto val = mixin("this." ~ member); // get the member's value
-            if ((perform_out_val == JsonizeOut.optional && !isInitial(val)) ||
-                perform_out_val == JsonizeOut.always ||
-                perform_out_val == JsonizeOut.unspecified) { // unspecified is always by default
+            if ((perform_out_val == JsonizeOut.opt && !isInitial(val)) ||
+                perform_out_val == JsonizeOut.yes ||
+                perform_out_val == JsonizeOut.unspecified) { // unspecified is yes by default
               keyValPairs[key] = toJSON(val);     // add the pair <memberKey> : <memberValue>
             }
           }
@@ -743,8 +743,8 @@ unittest {
   {
     mixin JsonizeMe;
     @jsonize int a;
-    @jsonize(Jsonize.optional) string attr;
-    @jsonize(JsonizeIn.optional) string attr2;
+    @jsonize(Jsonize.opt) string attr;
+    @jsonize(JsonizeIn.opt) string attr2;
   }
 
   auto a = A(5);
@@ -777,7 +777,7 @@ unittest {
   static struct B
   {
     mixin JsonizeMe;
-    @jsonize(Jsonize.optional) A a;
+    @jsonize(Jsonize.opt) A a;
   }
 
   auto b = B(A(10));
@@ -797,11 +797,11 @@ unittest {
   static struct T
   {
     mixin JsonizeMe;
-    @jsonize(Jsonize.optional)
+    @jsonize(Jsonize.opt)
     {
       int a;
-      @jsonize(JsonizeOut.never,JsonizeIn.always) string b;
-      @jsonize(JsonizeOut.always,JsonizeIn.never) string c;
+      @jsonize(JsonizeOut.no,JsonizeIn.yes) string b;
+      @jsonize(JsonizeOut.yes,JsonizeIn.no) string c;
     }
   }
 

@@ -3,9 +3,9 @@ module jsonizer.internal.attribute;
 /// use @jsonize to mark members to be (de)serialized from/to json
 /// use @jsonize to mark a single contructor to use when creating an object using extract
 /// use @jsonize("name") to make a member use the json key "name"
-/// use @jsonize(Jsonize.[always/optional]) to choose whether the parameter is optional
-/// use @jsonize(JsonizeIn.[always/optional/never]) to choose whether the parameter is optional for deserialization
-/// use @jsonize(JsonizeOut.[always/optional/never]) to choose whether the parameter is optional for serialization
+/// use @jsonize(Jsonize.[yes/opt]) to choose whether the parameter is optional
+/// use @jsonize(JsonizeIn.[yes/opt/no]) to choose whether the parameter is optional for deserialization
+/// use @jsonize(JsonizeOut.[yes/opt/no]) to choose whether the parameter is optional for serialization
 struct jsonize {
   /// alternate name used to identify member in json
   string key;
@@ -48,14 +48,14 @@ struct jsonize {
 /// whether member is required during deserialization
 enum JsonizeIn
 {
-  /// equal always by default
+  /// equal yes by default
   unspecified = 0,
   /// field is required -- fail deserialization if not found in json
-  always = 1,
-  /// field is optional -- deserialization can continue if field is not found in json
-  optional = 2,
+  yes = 1,
+  /// field is opt -- deserialization can continue if field is not found in json
+  opt = 2,
   /// newer use json value for deserialization
-  never = 3
+  no = 3
 }
 
 /// whether serialized field
@@ -64,20 +64,20 @@ enum JsonizeOut
   /// equal always by default
   unspecified = 0,
   /// always serialize
-  always = 1,
+  yes = 1,
   /// serialize only if it not equal initial value of type
-  optional = 2,
+  opt = 2,
   /// newer serialize field
-  never = 3
+  no = 3
 }
 
 /// common in/out using filed
 enum Jsonize
 {
-  /// always (de)serialize, equal JsonizeIn.always and JsonizeOut.always
-  always = 1,
-  /// equal JsonizeIn.optional and JsonizeOut.optional
-  optional = 2
+  /// always (de)serialize, equal JsonizeIn.yes and JsonizeOut.yes
+  yes = 1,
+  /// equal JsonizeIn.opt and JsonizeOut.opt
+  opt = 2
 }
 
 /// Use of `Jsonize(In,Out)`:
@@ -91,10 +91,10 @@ unittest {
     mixin JsonizeMe;
 
     @jsonize {
-      int i; // i is non-optional (default)
-      @jsonize(Jsonize.optional) {
+      int i; // i is non-opt (default)
+      @jsonize(Jsonize.opt) {
         @jsonize("_s") string s; // s is optional
-        @jsonize(Jsonize.always) float f; // f is non-optional (overrides outer attribute)
+        @jsonize(Jsonize.yes) float f; // f is non-optional (overrides outer attribute)
       }
     }
   }

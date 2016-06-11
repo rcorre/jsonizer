@@ -79,15 +79,15 @@ template performIn(alias member) {
 }
 
 unittest {
-  @jsonize(JsonizeIn.always) int a;
-  static assert( performIn!(a) == JsonizeIn.always );
+  @jsonize(JsonizeIn.yes) int a;
+  static assert(performIn!(a) == JsonizeIn.yes);
 }
 
 unittest {
-  @jsonize(Jsonize.always) @jsonize(JsonizeIn.optional) int a;
-  static assert( performIn!(a) == JsonizeIn.optional );
-  @jsonize(Jsonize.optional) @jsonize(JsonizeIn.never) int b;
-  static assert( performIn!(b) == JsonizeIn.never );
+  @jsonize(Jsonize.yes) @jsonize(JsonizeIn.opt) int a;
+  static assert(performIn!(a) == JsonizeIn.opt);
+  @jsonize(Jsonize.opt) @jsonize(JsonizeIn.no) int b;
+  static assert(performIn!(b) == JsonizeIn.no);
 }
 
 /// return JsonizeOut value for member.
@@ -117,10 +117,10 @@ template performOut(alias member) {
 }
 
 unittest {
-  @jsonize(Jsonize.always) @jsonize(JsonizeOut.optional) int a;
-  static assert( performOut!(a) == JsonizeOut.optional );
-  @jsonize(Jsonize.optional) @jsonize(JsonizeOut.never) int b;
-  static assert( performOut!(b) == JsonizeOut.never );
+  @jsonize(Jsonize.yes) @jsonize(JsonizeOut.opt) int a;
+  static assert( performOut!(a) == JsonizeOut.opt );
+  @jsonize(Jsonize.opt) @jsonize(JsonizeOut.no) int b;
+  static assert( performOut!(b) == JsonizeOut.no );
 }
 
 /// Get a tuple of all attributes on `sym` matching `attr`.
