@@ -138,4 +138,6 @@ struct JsonizeOptions {
    * Setting `classKey` to null will disable factory construction.
    */
   string classKey = "class";
+
+  string delegate(string) classMap;
 }

@@ -624,6 +624,63 @@ unittest {
   assert(b !is null && b.c == 2 && b.b == "hello");
 }
 
+//test the class map
+unittest {
+  import std.string : format;
+  import std.traits : fullyQualifiedName;
+  import jsonizer   : fromJSONString;
+
+  // use "type" instead of "class" to identify dynamic type
+  JsonizeOptions options;
+  options.classKey = "type";
+
+  // need to use these because unittest is assigned weird name
+  // normally would just be "modulename.classname"
+  //string classKeyA = fullyQualifiedName!TestCompA;
+  //string classKeyB = fullyQualifiedName!TestCompB;
+
+  const string wrongName = "unrelated";
+
+  string[string] classMap = [
+    TestCompA.stringof : fullyQualifiedName!TestCompA,
+    TestCompB.stringof : fullyQualifiedName!TestCompB,
+    wrongName          : fullyQualifiedName!TestCompA
+  ];
+
+  options.classMap = delegate string(string rawKey) {
+    if(auto val = rawKey in classMap)
+      return *val;
+    else
+      return null;
+  };
+
+  auto data = `[
+    {
+      "type": "%s",
+      "c": 1,
+      "a": 5
+    },
+    {
+      "type": "%s",
+      "c": 2,
+      "b": "hello"
+    },
+    {
+      "type": "%s",
+      "c": 3,
+      "a": 12
+    }
+  ]`.format(TestCompA.stringof, TestCompB.stringof, wrongName)
+  .fromJSONString!(TestComponent[])(options);
+
+  auto a = cast(TestCompA) data[0];
+  auto b = cast(TestCompB) data[1];
+  auto c = cast(TestCompA) data[2];
+  assert(a !is null && a.c == 1 && a.a == 5);
+  assert(b !is null && b.c == 2 && b.b == "hello");
+  assert(c !is null && c.c == 3 && c.a == 12);
+}
+
 // TODO: These are not examples but edge-case tests
 // factor out into dedicated test modules
 
