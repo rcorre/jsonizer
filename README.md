@@ -113,12 +113,12 @@ The above examples work on both classes and structs provided the following:
 ### Optional members
 By default, if a matching json entry is not found for a member marked with `@jsonize`,
 deserialization will fail.
-If this is not desired for a given member, mark it with `JsonizeOptional`.
+If this is not desired for a given member, mark it with `JsonizeIn.optional`.
 
 ```d
 class MyClass {
   @jsonize int i;
-  @jsonize(JsonizeOptional.yes) float f;
+  @jsonize(JsonizeIn.optional) float f;
 }
 ```
 
@@ -134,20 +134,43 @@ auto ex = collectException!JsonizeMismatchException(`{ "q": 5.0 }`.parseJSON.fro
 assert(ex.missingKeys == [ "i" ]);
 ```
 
-The way @jsonize takes parameters is rather flexible. While I can't condone making your class look
-like the below example, it demonstrates the flexibility of @jsonize:
+The way `@jsonize` takes parameters is rather flexible. While I can't condone making your class look
+like the below example, it demonstrates the flexibility of `@jsonize`:
 
 ```d
 class TotalMess {
-  @jsonize(JsonizeOptional.yes) {
+  @jsonize(JsonizeIn.optional) {
     @jsonize("i") int _i;
-    @jsonize("f", JsonizeOptional.no) float _f;
-    @jsonize(JsonizeOptional.no, "s") float _s;
+    @jsonize("f", JsonizeIn.always) float _f;
+    @jsonize(JsonizeIn.always, "s") float _s;
+  }
+}
+```
+As the above shows, parameters may be passed in any order to @jsonize.
+
+If you want to serialize only non-default (`val != typeof(val).init`) fields, you can use `JsonizeOut`
+
+```d
+class TotalMess {
+  @jsonize(JsonizeOut.optional) {
+    @jsonize("i") int _i;
+    @jsonize("f", JsonizeOut.always) float _f;
+    @jsonize(JsonizeOut.never, "s") float _s; // never serialized, only requred for deserialization
   }
 }
 ```
 
-As the above shows, parameters may be passed in any order to @jsonize.
+And you can use their both by `Jsonize`
+
+```d
+class TotalMess {
+  @jsonize(Jsonize.optional) int a;
+}
+```
+
+If `Jsonize.optional` member equals initial value of this type it don't serialize, and if
+it not presents in input json it don't throw exception.
+
 
 ### Extra Members
 If you would like to ensure that every entry in a json object is being

@@ -52,28 +52,75 @@ template jsonizeKey(T, string unused) {
   enum jsonizeKey = null;
 }
 
-/// return true if member is marked with @jsonize(JsonizeOptional.yes).
-template isOptional(alias member) {
+/// return JsonizeIn value for member.
+template performIn(alias member) {
   alias found = Filter!(isValueAttribute, findAttribute!(jsonize, member));
 
-  // find an explicit JsonizeOptional parameter.
+  // find an explicit JsonizeIn parameter.
   // start with the attribute closest to the member and move outwards.
   template helper(attrs ...) {
     static if (attrs.length == 0) {
-      // recursion endpoint, no JsonizeOptional found.
+      // recursion endpoint, no JsonizeIn found.
       enum helper = false;
     }
-    else static if (attrs[$ - 1].optional == JsonizeOptional.unspecified) {
-      // unspecified, recurse to less-nested attribute
-      enum helper = helper!(attrs[0 .. $ - 1]);
-    }
     else {
-      // specified either yes or no, use that value
-      enum helper = (attrs[$ - 1].optional == JsonizeOptional.yes);
+      enum perform_in_val = attrs[$ - 1].perform_in;
+      static if (perform_in_val == JsonizeIn.unspecified) {
+        // unspecified, recurse to less-nested attribute
+        enum helper = helper!(attrs[0 .. $ - 1]);
+      }
+      else {
+        enum helper = perform_in_val;
+      }
     }
   }
 
-  enum isOptional = helper!(found);
+  enum performIn = helper!found;
+}
+
+unittest {
+  @jsonize(JsonizeIn.yes) int a;
+  static assert(performIn!(a) == JsonizeIn.yes);
+}
+
+unittest {
+  @jsonize(Jsonize.yes) @jsonize(JsonizeIn.opt) int a;
+  static assert(performIn!(a) == JsonizeIn.opt);
+  @jsonize(Jsonize.opt) @jsonize(JsonizeIn.no) int b;
+  static assert(performIn!(b) == JsonizeIn.no);
+}
+
+/// return JsonizeOut value for member.
+template performOut(alias member) {
+  alias found = Filter!(isValueAttribute, findAttribute!(jsonize, member));
+
+  // find an explicit JsonizeOut parameter.
+  // start with the attribute closest to the member and move outwards.
+  template helper(attrs ...) {
+    static if (attrs.length == 0) {
+      // recursion endpoint, no JsonizeOut found.
+      enum helper = false;
+    }
+    else {
+      enum perform_out_val = attrs[$ - 1].perform_out;
+      static if (perform_out_val == JsonizeOut.unspecified) {
+        // unspecified, recurse to less-nested attribute
+        enum helper = helper!(attrs[0 .. $ - 1]);
+      }
+      else {
+        enum helper = perform_out_val;
+      }
+    }
+  }
+
+  enum performOut = helper!found;
+}
+
+unittest {
+  @jsonize(Jsonize.yes) @jsonize(JsonizeOut.opt) int a;
+  static assert( performOut!(a) == JsonizeOut.opt );
+  @jsonize(Jsonize.opt) @jsonize(JsonizeOut.no) int b;
+  static assert( performOut!(b) == JsonizeOut.no );
 }
 
 /// Get a tuple of all attributes on `sym` matching `attr`.
@@ -86,6 +133,18 @@ template findAttribute(alias attr, alias sym) {
   }
 
   alias findAttribute = Filter!(match, __traits(getAttributes, sym));
+}
+
+/// Check is value is equal an initial of this type value
+bool isInitial(T)( T val )
+{
+  static if (is(typeof(val == T.init))) {
+    return val == T.init;
+  }
+  else static if (is(typeof(val is T.init))) {
+    return val is T.init;
+  }
+  else static assert(0,"don't know how checks this types");
 }
 
 unittest {

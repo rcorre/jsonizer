@@ -3,25 +3,37 @@ module jsonizer.internal.attribute;
 /// use @jsonize to mark members to be (de)serialized from/to json
 /// use @jsonize to mark a single contructor to use when creating an object using extract
 /// use @jsonize("name") to make a member use the json key "name"
-/// use @jsonize(JsonizeOptional.[yes/no]) to choose whether the parameter is optional
+/// use @jsonize(Jsonize.[yes/opt]) to choose whether the parameter is optional
+/// use @jsonize(JsonizeIn.[yes/opt/no]) to choose whether the parameter is optional for deserialization
+/// use @jsonize(JsonizeOut.[yes/opt/no]) to choose whether the parameter is optional for serialization
 struct jsonize {
   /// alternate name used to identify member in json
   string key;
+
   /// whether member is required during deserialization
-  JsonizeOptional optional = JsonizeOptional.unspecified;
+  JsonizeIn perform_in = JsonizeIn.unspecified;
+  /// whether serialized member
+  JsonizeOut perform_out = JsonizeOut.unspecified;
 
   /// parameters to @jsonize may be specified in any order
   /// valid uses of @jsonize include:
   ///   @jsonize
   ///   @jsonize("foo")
-  ///   @jsonize(JsonizeOptional.yes)
-  ///   @jsonize("bar", JsonizeOptional.yes)
-  ///   @jsonize(JsonizeOptional.yes, "bar")
+  ///   @jsonize(Jsonize.optional)
+  ///   @jsonize("bar", Jsonize.optional)
+  ///   @jsonize(Jsonize.optional, "bar")
   this(T ...)(T params) {
     foreach(idx , param ; params) {
       alias type = T[idx];
-      static if (is(type == JsonizeOptional)) {
-        optional = param;
+      static if (is(type == Jsonize)) {
+        perform_in = cast(JsonizeIn)param;
+        perform_out = cast(JsonizeOut)param;
+      }
+      else static if (is(type == JsonizeIn)) {
+        perform_in = param;
+      }
+      else static if (is(type == JsonizeOut)) {
+        perform_out = param;
       }
       else static if (is(type : string)) {
         key = param;
@@ -33,14 +45,42 @@ struct jsonize {
   }
 }
 
-/// whether to fail deserialization if field is not found in json
-enum JsonizeOptional {
-  unspecified, /// optional status not specified (currently defaults to `no`)
-  no,          /// field is required -- fail deserialization if not found in json
-  yes          /// field is optional -- deserialization can continue if field is not found in json
+/// whether member is required during deserialization
+enum JsonizeIn
+{
+  /// equal yes by default
+  unspecified = 0,
+  /// field is required -- fail deserialization if not found in json
+  yes = 1,
+  /// field is opt -- deserialization can continue if field is not found in json
+  opt = 2,
+  /// newer use json value for deserialization
+  no = 3
 }
 
-/// Use of `JsonizeOptional`:
+/// whether serialized field
+enum JsonizeOut
+{
+  /// equal always by default
+  unspecified = 0,
+  /// always serialize
+  yes = 1,
+  /// serialize only if it not equal initial value of type
+  opt = 2,
+  /// newer serialize field
+  no = 3
+}
+
+/// common in/out using filed
+enum Jsonize
+{
+  /// always (de)serialize, equal JsonizeIn.yes and JsonizeOut.yes
+  yes = 1,
+  /// equal JsonizeIn.opt and JsonizeOut.opt
+  opt = 2
+}
+
+/// Use of `Jsonize(In,Out)`:
 unittest {
   import std.json            : parseJSON;
   import std.exception       : collectException, assertNotThrown;
@@ -51,10 +91,10 @@ unittest {
     mixin JsonizeMe;
 
     @jsonize {
-      int i; // i is non-optional (default)
-      @jsonize(JsonizeOptional.yes) {
+      int i; // i is non-opt (default)
+      @jsonize(Jsonize.opt) {
         @jsonize("_s") string s; // s is optional
-        @jsonize(JsonizeOptional.no) float f; // f is non-optional (overrides outer attribute)
+        @jsonize(Jsonize.yes) float f; // f is non-optional (overrides outer attribute)
       }
     }
   }
