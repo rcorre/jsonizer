@@ -144,8 +144,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
 
         static if(key !is null) {
           enum perform_out_val = performOut!(__traits(getMember, this, member));
-          static if (perform_out_val != JsonizeOut.no)
-          {
+          static if (perform_out_val != JsonizeOut.no) {
             auto val = mixin("this." ~ member); // get the member's value
             if ((perform_out_val == JsonizeOut.opt && !isInitial(val)) ||
                 perform_out_val == JsonizeOut.yes ||

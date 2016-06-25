@@ -160,16 +160,14 @@ class TotalMess {
 }
 ```
 
-And you can use their both by `Jsonize`
+As a shortcut to `JsonizeIn/JsonizeOut`, you can just use `Jsonize`:
 
 ```d
 class TotalMess {
+  // equivalent to: @jsonize(JsonizeIn.optional, JsonizeOut.optional)
   @jsonize(Jsonize.optional) int a;
 }
 ```
-
-If `Jsonize.optional` member equals initial value of this type it don't serialize, and if
-it not presents in input json it don't throw exception.
 
 
 ### Extra Members

@@ -45,38 +45,38 @@ struct jsonize {
   }
 }
 
-/// whether member is required during deserialization
+/// Control the strictness with which a field is deserialized
 enum JsonizeIn
 {
-  /// equal yes by default
+  /// the default value -- equivalent to `yes`
   unspecified = 0,
-  /// field is required -- fail deserialization if not found in json
+  /// always deserialize this field, fail if it is not present
   yes = 1,
-  /// field is opt -- deserialization can continue if field is not found in json
+  /// deserialize if found, but continue without error if it is missing
   opt = 2,
-  /// newer use json value for deserialization
+  /// never deserialize this field
   no = 3
 }
 
-/// whether serialized field
+/// Control the strictness with which a field is serialized
 enum JsonizeOut
 {
-  /// equal always by default
+  /// the default value -- equivalent to `yes`
   unspecified = 0,
-  /// always serialize
+  /// always serialize this field
   yes = 1,
-  /// serialize only if it not equal initial value of type
+  /// serialize only if it not equal to the initial value of the type
   opt = 2,
-  /// newer serialize field
+  /// never serialize this field
   no = 3
 }
 
-/// common in/out using filed
+/// Shortcut for setting both `JsonizeIn` and `JsonizeOut`
 enum Jsonize
 {
-  /// always (de)serialize, equal JsonizeIn.yes and JsonizeOut.yes
+  /// equivalent to JsonizeIn.yes, JsonizeOut.yes
   yes = 1,
-  /// equal JsonizeIn.opt and JsonizeOut.opt
+  /// equivalent to  JsonizeIn.opt, JsonizeOut.opt
   opt = 2
 }
 
