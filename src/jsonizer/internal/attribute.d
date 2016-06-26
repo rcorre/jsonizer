@@ -143,8 +143,10 @@ struct JsonizeOptions {
    * A function to attempt identifier remapping from the name found under `classKey`.
    *
    * If this function is provided, then when the `classKey` is found, this function
-   * will attempt to remap the value.  Returned non-null values indicate that the
-   * remapping has succeeded.
+   * will attempt to remap the value.  This function should return either the fully
+   * qualified class name or null.  Returned non-null values indicate that the
+   * remapping has succeeded.  A null value will indicate the mapping has failed
+   * and the original value will be used in the object factory.
    *
    * This is particularly useful when input JSON has not originated from D.
    */
