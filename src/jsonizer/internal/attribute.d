@@ -139,5 +139,14 @@ struct JsonizeOptions {
    */
   string classKey = "class";
 
+  /**
+   * A function to attempt identifier remapping from the name found under `classKey`.
+   *
+   * If this function is provided, then when the `classKey` is found, this function
+   * will attempt to remap the value.  Returned non-null values indicate that the
+   * remapping has succeeded.
+   *
+   * This is particularly useful when input JSON has not originated from D.
+   */
   string delegate(string) classMap;
 }

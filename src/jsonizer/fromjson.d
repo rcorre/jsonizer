@@ -393,7 +393,7 @@ T fromJSONImpl(T, P)(JSONValue json, P parent, in ref JsonizeOptions options) {
     // look for class keyword in json
     auto className = json.fromJSON!string(options.classKey, null);
     // try creating an instance with Object.factory
-    if(options.classMap) {
+    if (options.classMap) {
         if(auto tmp = options.classMap(className))
           className = tmp;
     }
