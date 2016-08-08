@@ -1,20 +1,20 @@
 {
-	"name"         : "jsonizer",
-	"description"  : "Flexible JSON serializer requiring minimal boilerplate",
-	"copyright"    : "Copyright © 2015, rcorre",
-	"authors"      : ["rcorre"],
-  "license"      : "MIT",
-  "targetType"   : "library",
-	"dependencies" : {
-	},
-  "configurations": [
-    {
-      "name": "library"
+    "name"         : "jsonizer",
+    "description"  : "Flexible JSON serializer requiring minimal boilerplate",
+    "copyright"    : "Copyright © 2015, rcorre",
+    "authors"      : ["rcorre"],
+    "license"      : "MIT",
+    "targetType"   : "library",
+    "dependencies" : {
     },
-    {
-      "name": "unittest",
-      "importPaths": [ "src", "tests" ],
-      "sourcePaths": [ "src", "tests" ]
-    }
-  ]
+    "configurations": [
+        {
+            "name": "library"
+        },
+        {
+            "name": "unittest",
+            "importPaths": [ "src", "tests" ],
+            "sourcePaths": [ "src", "tests" ]
+        }
+    ]
 }
