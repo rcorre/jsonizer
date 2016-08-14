@@ -11,6 +11,7 @@ void runTest(T)(T obj) {
   assert(obj.toJSONString.fromJSONString!T == obj);
 }
 
+/++
 unittest {
   auto obj = new OuterClass;
   obj.outerVal = 5;
@@ -29,3 +30,4 @@ unittest {
 unittest {
   assert("null".fromJSONString!SimpleClass is null);
 }
+++/

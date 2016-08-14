@@ -28,101 +28,45 @@ public import jsonizer.internal.attribute;
 mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
   static import std.json;
 
-  // Nested mixins -- these generate private functions to perform serialization/deserialization
-  private mixin template MakeDeserializer() {
-    private void _fromJSON(std.json.JSONValue json,
-                           in ref JsonizeOptions options)
-    {
-      // scoped imports include necessary functions without avoid polluting class namespace
-      import std.traits          : isNested, isAggregateType;
-      import std.algorithm       : filter;
-      import jsonizer.jsonize    : JsonizeIgnoreExtraKeys;
-      import jsonizer.fromjson   : fromJSON, nestedFromJSON, hasCustomJsonCtor;
-      import jsonizer.exceptions : JsonizeMismatchException;
-      import jsonizer.internal.util;
+  template _membersWithUDA(uda) {
+    import std.meta : Erase, Filter;
+    import std.traits : isSomeFunction, hasUDA;
+    import std.string : startsWith;
 
-      alias T = typeof(this);
+    template include(string name) {
+      enum isReserved = name.startsWith("__");
 
-      // TODO: look into moving this up a level and not generating _fromJSON at all.
-      static if (!hasCustomJsonCtor!T) {
-        // track fields found to detect keys that do not map to serialized fields
-        int fieldsFound = 0;
-        string[] missingKeys;
-        auto keyValPairs = json.object;
+      enum isInstanceField = __traits(compiles, mixin("this."~name~".offsetof"));
 
-        // check if each member is actually a member and is marked with the @jsonize attribute
-        foreach(member ; filteredMembers!T) {
-          // even with filtering members, need to make sure this is a valid member.
-          // Things like nested class types will make it through.
-          static if (__traits(compiles, __traits(getMember, this, member))) {
-            // find @jsonize, deduce member key
-            enum key = jsonizeKey!(__traits(getMember, this, member), member);
-          }
-          else {
-            enum key = null; // not a real member
-          }
+      enum isInstanceMethod =
+        isSomeFunction!(mixin("this."~name)) &&
+        !__traits(isStaticFunction, mixin("this."~name));
 
-          static if (key !is null) {
-            enum perform_in_val = performIn!(__traits(getMember, this, member));
-            if (key in keyValPairs) {
-              ++fieldsFound;
-              alias MemberType = typeof(mixin(member));         // deduce member type
-              // special handling for nested class types
-              static if (perform_in_val != JsonizeIn.no)
-              {
-                static if (isAggregateType!MemberType && isNested!MemberType) {
-                    auto val = nestedFromJSON!MemberType(keyValPairs[key], this, options);
-                }
-                else {
-                    // extract value from json
-                    auto val = fromJSON!MemberType(keyValPairs[key], options);
-                }
-                mixin("this." ~ member ~ "= val;");               // assign value to member
-              }
-            }
-            else {
-              static if (perform_in_val == JsonizeIn.yes ||
-                         perform_in_val == JsonizeIn.unspecified) { // unspecified is yes by default
-                missingKeys ~= key;
-              }
-            }
-          }
-        }
-
-        bool extraKeyFailure = false; // should we fail due to extra keys?
-        static if (ignoreExtra == JsonizeIgnoreExtraKeys.no) {
-          extraKeyFailure = (fieldsFound != keyValPairs.keys.length);
-        }
-
-        // check for failure condition
-        // TODO: clean up with template to get all @jsonized members
-        if (extraKeyFailure || missingKeys.length > 0) {
-          string[] extraKeys;
-          foreach(jsonKey ; json.object.byKey) {
-            bool match = false;
-            foreach(member ; filteredMembers!T) {
-              static if (__traits(compiles, __traits(getMember, this, member))) {
-                enum memberKey = jsonizeKey!(__traits(getMember, this, member), member);
-              }
-              else {
-                enum memberKey = null;
-              }
-
-              if (memberKey == jsonKey) {
-                match = true;
-                break;
-              }
-            }
-            if (!match) {
-              extraKeys ~= jsonKey;
-            }
-          }
-
-          throw new JsonizeMismatchException(typeid(T), extraKeys, missingKeys);
-        }
-      }
+      static if ((isInstanceField || isInstanceMethod) && !isReserved)
+        enum include = hasUDA!(mixin("this."~name), uda);
+      else
+        enum include = false;
     }
+
+    enum members = Erase!("this", __traits(allMembers, typeof(this)));
+
+    alias _membersWithUDA = Filter!(include, members);
   }
+
+  template _getUDAs(string name, alias uda) {
+      import std.traits : getUDAs;
+      alias _getUDAs = getUDAs!(mixin(name), uda);
+  }
+
+  auto _readMember(string name)() {
+      return __traits(getMember, this, name);
+  }
+
+  void _writeMember(T, string name)(T val) {
+      __traits(getMember, this, name) = val;
+  }
+
+  alias _jsonizeIgnoreExtra = ignoreExtra;
 
   private mixin template MakeSerializer() {
     private std.json.JSONValue _toJSON() {
@@ -133,7 +77,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
 
       std.json.JSONValue[string] keyValPairs;
       // look for members marked with @jsonize, ignore __ctor
-      foreach(member ; filteredMembers!T) {
+      foreach(member ; T._membersWithUDA!jsonize) {
         // find @jsonize, deduce member key
         static if (__traits(compiles, __traits(getMember, this, member))) {
           enum key = jsonizeKey!(__traits(getMember, this, member), member);
@@ -163,36 +107,115 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
 
   // generate private functions with no override specifiers
   mixin MakeSerializer GeneratedSerializer;
-  mixin MakeDeserializer GeneratedDeserializer;
 
   // expose the methods generated above by wrapping them in public methods.
   // apply the overload attribute to the public methods if already implemented in base class.
   static if (is(typeof(this) == class) &&
-      __traits(hasMember, std.traits.BaseClassesTuple!(typeof(this))[0], "populateFromJSON"))
+      __traits(hasMember, std.traits.BaseClassesTuple!(typeof(this))[0], "convertToJSON"))
   {
-    override void populateFromJSON(std.json.JSONValue json,
-                                   in ref JsonizeOptions options)
-    {
-      GeneratedDeserializer._fromJSON(json, options);
-    }
-
     override std.json.JSONValue convertToJSON() {
       return GeneratedSerializer._toJSON();
     }
   }
   else {
-    void populateFromJSON(std.json.JSONValue json,
-                          in ref JsonizeOptions options)
-    {
-      GeneratedDeserializer._fromJSON(json, options);
-    }
-
     std.json.JSONValue convertToJSON() {
       return GeneratedSerializer._toJSON();
     }
   }
 }
 
+version (unittest)
+  import std.meta : AliasSeq;
+
+unittest {
+  static struct attr { string s; }
+  static struct S {
+    mixin JsonizeMe;
+    @attr this(int i) { }
+    @attr this(this) { }
+    @attr ~this() { }
+    @attr int a;
+    @attr static int b;
+    @attr void c() { }
+    @attr static void d() { }
+    @attr int e(string s) { return 1; }
+    @attr static int f(string s) { return 1; }
+    @attr("foo") int g;
+    @attr("foo") static int h;
+    int i;
+    static int j;
+    void k() { };
+    static void l() { };
+  }
+
+  static assert (S._membersWithUDA!attr == AliasSeq!("a", "c", "e", "g"));
+}
+
+unittest {
+  struct attr { string s; }
+  struct Outer {
+    mixin JsonizeMe;
+    @attr int a;
+    struct Inner {
+      mixin JsonizeMe;
+      @attr this(int i) { }
+      @attr this(this) { }
+      @attr int b;
+    }
+  }
+
+  static assert (Outer._membersWithUDA!attr == AliasSeq!("a"));
+  static assert (Outer.Inner._membersWithUDA!attr == AliasSeq!("b"));
+}
+
+unittest {
+  struct attr { string s; }
+  struct A {
+    mixin JsonizeMe;
+    @disable this();
+    @disable this(this);
+    @attr int a;
+  }
+
+  static assert (A._membersWithUDA!attr == AliasSeq!("a"));
+}
+
+unittest {
+  import std.meta : AliasSeq;
+
+  struct attr { string s; }
+
+  class A {
+    mixin JsonizeMe;
+    @attr int a;
+    @attr string b() { return "hi"; }
+    string c() { return "hi"; }
+  }
+
+  static assert (A._membersWithUDA!attr == AliasSeq!("a", "b"));
+
+  class B : A { mixin JsonizeMe; }
+
+  static assert (B._membersWithUDA!attr == AliasSeq!("a", "b"));
+
+  class C : A {
+    mixin JsonizeMe;
+    @attr int d;
+  }
+
+  static assert (C._membersWithUDA!attr == AliasSeq!("d", "a", "b"));
+
+  /* TODO -- handle subclass disabling inherited member
+  class D : A {
+    mixin JsonizeMe;
+    @disable int a;
+  }
+
+  static assert (D._membersWithUDA!attr == AliasSeq!("b"));
+  */
+}
+
+/++
 /// object serialization -- fields only
 unittest {
   import std.math : approxEqual;
@@ -875,3 +898,4 @@ unittest {
   assert(t.b == t2.b);
   assert(t2.c == "");
 }
+++/

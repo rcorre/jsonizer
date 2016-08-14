@@ -10,6 +10,7 @@ else {
   static assert(0, "Do not include tests dir unless in unit-test mode!");
 }
 
+/++
 struct PrimitiveStruct {
   mixin JsonizeMe;
 
@@ -219,3 +220,4 @@ struct IntStruct {
   int i;
   @jsonize this(int i) { this.i = i; }
 }
+++/

@@ -48,7 +48,7 @@ struct jsonize {
 /// Control the strictness with which a field is deserialized
 enum JsonizeIn
 {
-  /// the default value -- equivalent to `yes`
+  /// The default. Equivalent to `yes` unless overridden by another UDA.
   unspecified = 0,
   /// always deserialize this field, fail if it is not present
   yes = 1,

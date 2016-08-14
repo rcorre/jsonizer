@@ -11,6 +11,7 @@ module jsonizer.fromjson;
 import std.json;
 import std.conv;
 import std.file;
+import std.meta;
 import std.range;
 import std.traits;
 import std.string;
@@ -18,7 +19,7 @@ import std.algorithm;
 import std.exception;
 import std.typetuple;
 import std.typecons : staticIota, Tuple;
-import jsonizer.exceptions : JsonizeTypeException, JsonizeConstructorException;
+import jsonizer.exceptions;
 import jsonizer.internal.attribute;
 import jsonizer.internal.util;
 
@@ -170,6 +171,7 @@ unittest {
 
     @jsonize int i;
     @jsonize string s;
+    float f;
   }
 
   auto json = `{ "i": 5, "s": "tally-ho!" }`.parseJSON;
@@ -495,7 +497,7 @@ T invokeDefaultCtor(T, P)(JSONValue json, P parent, JsonizeOptions options) {
     obj = new T;
   }
 
-  obj.populateFromJSON(json, options);
+  populate(obj, json, options);
   return obj;
 }
 
@@ -539,4 +541,61 @@ T invokePrimitiveCtor(T, P)(JSONValue json, P parent) {
   }
 
   assert(0, "No primitive ctor for type " ~ T.stringof);
+}
+
+void populate(T)(ref T obj, JSONValue json, in JsonizeOptions opt) {
+  // TODO: only create array for missing keys if we are already failing
+  string[] missingKeys;
+  uint fieldsFound = 0;
+
+  foreach (member ; T._membersWithUDA!jsonize) {
+    string key = jsonKey!(T, member);
+
+    auto required = JsonizeIn.unspecified;
+    foreach (attr ; T._getUDAs!(member, jsonize))
+      if (attr.perform_in != JsonizeIn.unspecified)
+        required = attr.perform_in;
+
+    if (required == JsonizeIn.no) continue;
+
+    if (auto jsonval = key in json.object) {
+      ++fieldsFound;
+      alias MemberType = typeof(obj._readMember!member()); // TODO
+
+      static if (isAggregateType!MemberType && isNested!MemberType)
+        auto val = nestedFromJSON!MemberType(*jsonval, obj, opt);
+      else
+        auto val = fromJSON!MemberType(*jsonval, opt);
+
+      obj._writeMember!(MemberType, member)(val);
+    }
+    else {
+      if (required == JsonizeIn.yes) missingKeys ~= key;
+    }
+  }
+
+  string[] extraKeys;
+  if (!T._jsonizeIgnoreExtra && fieldsFound < json.object.length)
+    extraKeys = json.object.keys.filter!(x => x.isUnknownKey!T).array;
+
+  if (missingKeys.length > 0 || extraKeys.length > 0)
+    throw new JsonizeMismatchException(typeid(T), extraKeys, missingKeys);
+}
+
+bool isUnknownKey(T)(string key) {
+  foreach (member ; T._membersWithUDA!jsonize)
+    if (jsonKey!(T, member) == key)
+      return false;
+
+  return true;
+}
+
+template jsonKey(T, string member) {
+    alias attrs = T._getUDAs!(member, jsonize);
+    static if (!attrs.length)
+      enum jsonKey = member;
+    else static if (attrs[$ - 1].key)
+      enum jsonKey = attrs[$ - 1].key;
+    else
+      enum jsonKey = member;
 }

@@ -164,25 +164,25 @@ JSONValue toJSON(T)(T obj) if (!isBuiltinType!T) {
 }
 
 /// Serialize an instance of a user-defined type to a json object.
-unittest {
-  import jsonizer.jsonize;
-  import jsonizer.fromjson;
-
-  static struct Foo {
-    mixin JsonizeMe;
-
-    @jsonize {
-      int i;
-      string[] a;
-    }
-  }
-
-  auto foo = Foo(12, [ "a", "b" ]);
-  auto json = foo.toJSON();
-
-  assert(json.fromJSON!int("i") == 12);
-  assert(json.fromJSON!(string[])("a") == [ "a", "b" ]);
-}
+//unittest {
+//  import jsonizer.jsonize;
+//  import jsonizer.fromjson;
+//
+//  static struct Foo {
+//    mixin JsonizeMe;
+//
+//    @jsonize {
+//      int i;
+//      string[] a;
+//    }
+//  }
+//
+//  auto foo = Foo(12, [ "a", "b" ]);
+//  auto json = foo.toJSON();
+//
+//  assert(json.fromJSON!int("i") == 12);
+//  assert(json.fromJSON!(string[])("a") == [ "a", "b" ]);
+//}
 
 /// Whether to nicely format json string.
 alias PrettyJson = Flag!"PrettyJson";

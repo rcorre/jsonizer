@@ -22,6 +22,7 @@ auto staticArray(T, Params ...)(Params params) {
   return cast(T[Params.length]) [params];
 }
 
+/++
 unittest {
   runTest!PrimitiveStruct(1, 2UL, true, 0.4f, 0.8, "wat?"); // general case
   runTest!PrimitiveStruct(0, 40, false, 0.4f, 22.8, "");    // empty string
@@ -91,3 +92,4 @@ unittest {
   assert(`{"i": 5, "j": "hi"}`.fromJSONString!JSONValueStruct ==
          JSONValueStruct(5, JSONValue("hi")));
 }
+++/
