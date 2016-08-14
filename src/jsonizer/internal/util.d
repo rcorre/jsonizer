@@ -135,18 +135,6 @@ template findAttribute(alias attr, alias sym) {
   alias findAttribute = Filter!(match, __traits(getAttributes, sym));
 }
 
-/// Check is value is equal an initial of this type value
-bool isInitial(T)( T val )
-{
-  static if (is(typeof(val == T.init))) {
-    return val == T.init;
-  }
-  else static if (is(typeof(val is T.init))) {
-    return val is T.init;
-  }
-  else static assert(0,"don't know how checks this types");
-}
-
 unittest {
   struct attr { int i; }
   struct junk { int i; }

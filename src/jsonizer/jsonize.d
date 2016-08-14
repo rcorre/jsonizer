@@ -67,61 +67,6 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
   }
 
   alias _jsonizeIgnoreExtra = ignoreExtra;
-
-  private mixin template MakeSerializer() {
-    private std.json.JSONValue _toJSON() {
-      import jsonizer.tojson        : toJSON;
-      import jsonizer.internal.util : jsonizeKey, filteredMembers, performOut, isInitial;
-
-      alias T = typeof(this);
-
-      std.json.JSONValue[string] keyValPairs;
-      // look for members marked with @jsonize, ignore __ctor
-      foreach(member ; T._membersWithUDA!jsonize) {
-        // find @jsonize, deduce member key
-        static if (__traits(compiles, __traits(getMember, this, member))) {
-          enum key = jsonizeKey!(__traits(getMember, this, member), member);
-        }
-        else {
-          enum key = null;
-        }
-
-        static if(key !is null) {
-          enum perform_out_val = performOut!(__traits(getMember, this, member));
-          static if (perform_out_val != JsonizeOut.no) {
-            auto val = mixin("this." ~ member); // get the member's value
-            if ((perform_out_val == JsonizeOut.opt && !isInitial(val)) ||
-                perform_out_val == JsonizeOut.yes ||
-                perform_out_val == JsonizeOut.unspecified) { // unspecified is yes by default
-              keyValPairs[key] = toJSON(val);     // add the pair <memberKey> : <memberValue>
-            }
-          }
-        }
-      }
-      // construct the json object
-      std.json.JSONValue json;
-      json.object = keyValPairs;
-      return json;
-    }
-  }
-
-  // generate private functions with no override specifiers
-  mixin MakeSerializer GeneratedSerializer;
-
-  // expose the methods generated above by wrapping them in public methods.
-  // apply the overload attribute to the public methods if already implemented in base class.
-  static if (is(typeof(this) == class) &&
-      __traits(hasMember, std.traits.BaseClassesTuple!(typeof(this))[0], "convertToJSON"))
-  {
-    override std.json.JSONValue convertToJSON() {
-      return GeneratedSerializer._toJSON();
-    }
-  }
-  else {
-    std.json.JSONValue convertToJSON() {
-      return GeneratedSerializer._toJSON();
-    }
-  }
 }
 
 version (unittest)

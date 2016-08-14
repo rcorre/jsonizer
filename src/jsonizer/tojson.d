@@ -14,6 +14,7 @@ import std.conv : to;
 import std.file : write;
 import std.exception : enforce;
 import std.typecons : staticIota, Flag;
+import jsonizer.internal.attribute;
 
 // Primitive Type Conversions -----------------------------------------------------------
 /// convert a JSONValue to a JSONValue (identity)
@@ -157,32 +158,52 @@ unittest {
 /// Convert a user-defined type to json.
 /// See `jsonizer.jsonize` for info on how to mark your own types for serialization.
 JSONValue toJSON(T)(T obj) if (!isBuiltinType!T) {
-  static if (is (T == class)) {
+  static if (is (T == class))
     if (obj is null) { return JSONValue(null); }
+
+  JSONValue[string] keyValPairs;
+
+  foreach(member ; T._membersWithUDA!jsonize) {
+    enum key = jsonKey!(T, member);
+
+    auto output = JsonizeIn.unspecified;
+    foreach (attr ; T._getUDAs!(member, jsonize))
+      if (attr.perform_in != JsonizeIn.unspecified)
+        required = attr.perform_in;
+
+    if (output == JsonizeOut.no) continue;
+
+    auto val = obj._readMember!member;
+    if (output == JsonizeOut.opt && isInitial(val)) continue;
+
+    keyValPairs[key] = toJSON(val);
   }
-  return obj.convertToJSON();
+
+  std.json.JSONValue json;
+  json.object = keyValPairs;
+  return json;
 }
 
 /// Serialize an instance of a user-defined type to a json object.
-//unittest {
-//  import jsonizer.jsonize;
-//  import jsonizer.fromjson;
-//
-//  static struct Foo {
-//    mixin JsonizeMe;
-//
-//    @jsonize {
-//      int i;
-//      string[] a;
-//    }
-//  }
-//
-//  auto foo = Foo(12, [ "a", "b" ]);
-//  auto json = foo.toJSON();
-//
-//  assert(json.fromJSON!int("i") == 12);
-//  assert(json.fromJSON!(string[])("a") == [ "a", "b" ]);
-//}
+unittest {
+  import jsonizer.jsonize;
+  import jsonizer.fromjson;
+
+  static struct Foo {
+    mixin JsonizeMe;
+
+    @jsonize {
+      int i;
+      string[] a;
+    }
+  }
+
+  auto foo = Foo(12, [ "a", "b" ]);
+  auto json = foo.toJSON();
+
+  assert(json.fromJSON!int("i") == 12);
+  assert(json.fromJSON!(string[])("a") == [ "a", "b" ]);
+}
 
 /// Whether to nicely format json string.
 alias PrettyJson = Flag!"PrettyJson";
@@ -227,4 +248,25 @@ unittest {
   assert(json.array[0].integer == 1);
   assert(json.array[1].integer == 2);
   assert(json.array[2].integer == 3);
+}
+
+// TODO: put in jsonizer.common
+template jsonKey(T, string member) {
+    alias attrs = T._getUDAs!(member, jsonize);
+    static if (!attrs.length)
+      enum jsonKey = member;
+    else static if (attrs[$ - 1].key)
+      enum jsonKey = attrs[$ - 1].key;
+    else
+      enum jsonKey = member;
+}
+
+// True if `val` is equal to the initial value of that type
+bool isInitial(T)(T val)
+{
+  static if (is(typeof(val == T.init)))
+    return val == T.init;
+  else static if (is(typeof(val is T.init)))
+    return val is T.init;
+  else static assert(0, "isInitial can't handle " ~ T.stringof);
 }
