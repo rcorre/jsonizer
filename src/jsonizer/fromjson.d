@@ -20,8 +20,7 @@ import std.exception;
 import std.typetuple;
 import std.typecons : staticIota, Tuple;
 import jsonizer.exceptions;
-import jsonizer.internal.attribute;
-import jsonizer.internal.util;
+import jsonizer.common;
 
 /**
  * Deserialize json into a value of type `T`.
@@ -352,14 +351,6 @@ deprecated("use fromJSON instead") {
   }
 }
 
-// really should be private, but gets used from the mixin
-Inner nestedFromJSON(Inner, Outer)(JSONValue json,
-                                   Outer outer,
-                                   in ref JsonizeOptions options)
-{
-  return fromJSONImpl!Inner(json, outer, options);
-}
-
 private:
 void enforceJsonType(T)(JSONValue json, JSON_TYPE[] expected ...) {
   if (!expected.canFind(json.type)) {
@@ -469,19 +460,12 @@ T invokeCustomJsonCtor(T, alias Ctor, P)(JSONValue json, P parent) {
       }
     }
   }
-  static if (isNested!T) {
-    return constructNested!T(parent, args.expand);
-  }
-  else static if (is(T == class)) {
+  static if (isNested!T)
+    return parent.new T(args.expand);
+  else static if (is(T == class))
     return new T(args.expand);
-  }
-  else {
+  else
     return T(args.expand);
-  }
-}
-
-Inner constructNested(Inner, Outer, Args ...)(Outer outer, Args args) {
-  return outer.new Inner(args);
 }
 
 T invokeDefaultCtor(T, P)(JSONValue json, P parent, JsonizeOptions options) {
@@ -534,7 +518,7 @@ T invokePrimitiveCtor(T, P)(JSONValue json, P parent) {
       alias Types = ParameterTypeTuple!overload;
 
       // look for an @jsonized ctor with a single parameter
-      static if (hasAttribute!(jsonize, overload) && Types.length == 1) {
+      static if (hasUDA!(overload, jsonize) && Types.length == 1) {
         return construct!T(parent, json.fromJSON!(Types[0]));
       }
     }
@@ -544,7 +528,6 @@ T invokePrimitiveCtor(T, P)(JSONValue json, P parent) {
 }
 
 void populate(T)(ref T obj, JSONValue json, in JsonizeOptions opt) {
-  // TODO: only create array for missing keys if we are already failing
   string[] missingKeys;
   uint fieldsFound = 0;
 
@@ -563,7 +546,7 @@ void populate(T)(ref T obj, JSONValue json, in JsonizeOptions opt) {
       alias MemberType = typeof(obj._readMember!member()); // TODO
 
       static if (isAggregateType!MemberType && isNested!MemberType)
-        auto val = nestedFromJSON!MemberType(*jsonval, obj, opt);
+        auto val = fromJSONImpl!Inner(*jsonval, obj, opt);
       else
         auto val = fromJSON!MemberType(*jsonval, opt);
 
@@ -590,12 +573,128 @@ bool isUnknownKey(T)(string key) {
   return true;
 }
 
-template jsonKey(T, string member) {
-    alias attrs = T._getUDAs!(member, jsonize);
-    static if (!attrs.length)
-      enum jsonKey = member;
-    else static if (attrs[$ - 1].key)
-      enum jsonKey = attrs[$ - 1].key;
-    else
-      enum jsonKey = member;
+T construct(T, P, Params ...)(P parent, Params params) {
+  static if (!is(P == typeof(null))) {
+    return parent.new T(params);
+  }
+  else static if (is(typeof(T(params)) == T)) {
+    return T(params);
+  }
+  else static if (is(typeof(new T(params)) == T)) {
+    return new T(params);
+  }
+  else {
+    static assert(0, "Cannot construct");
+  }
+}
+
+unittest {
+  static struct Foo {
+    this(int i) { this.i = i; }
+    int i;
+  }
+
+  assert(construct!Foo(null).i == 0);
+  assert(construct!Foo(null, 4).i == 4);
+  assert(!__traits(compiles, construct!Foo("asd")));
+}
+
+unittest {
+  static class Foo {
+    this(int i) { this.i = i; }
+
+    this(int i, string s) {
+      this.i = i;
+      this.s = s;
+    }
+
+    int i;
+    string s;
+  }
+
+  assert(construct!Foo(null, 4).i == 4);
+  assert(construct!Foo(null, 4, "asdf").s == "asdf");
+  assert(!__traits(compiles, construct!Foo("asd")));
+}
+
+unittest {
+  class Foo {
+    class Bar {
+      int i;
+      this(int i) { this.i = i; }
+    }
+  }
+
+  auto f = new Foo;
+  assert(construct!(Foo.Bar)(f, 2).i == 2);
+}
+
+template hasDefaultCtor(T) {
+  import std.traits : isNested;
+  static if (isNested!T) {
+    alias P = typeof(__traits(parent, T).init);
+    enum hasDefaultCtor = is(typeof(P.init.new T()) == T);
+  }
+  else {
+    enum hasDefaultCtor = is(typeof(T()) == T) || is(typeof(new T()) == T);
+  }
+}
+
+version(unittest) {
+  struct S1 { }
+  struct S2 { this(int i) { } }
+  struct S3 { @disable this(); }
+
+  class C1 { }
+  class C2 { this(string s) { } }
+  class C3 { class Inner { } }
+  class C4 { class Inner { this(int i); } }
+}
+
+unittest {
+  static assert( hasDefaultCtor!S1);
+  static assert( hasDefaultCtor!S2);
+  static assert(!hasDefaultCtor!S3);
+
+  static assert( hasDefaultCtor!C1);
+  static assert(!hasDefaultCtor!C2);
+
+  static assert( hasDefaultCtor!C3);
+  static assert( hasDefaultCtor!(C3.Inner));
+  static assert(!hasDefaultCtor!(C4.Inner));
+}
+
+template hasCustomJsonCtor(T) {
+  static if (__traits(hasMember, T, "__ctor")) {
+    alias Overloads = TypeTuple!(__traits(getOverloads, T, "__ctor"));
+
+    enum test(alias fn) = staticIndexOf!(jsonize, __traits(getAttributes, fn)) >= 0;
+
+    enum hasCustomJsonCtor = anySatisfy!(test, Overloads);
+  }
+  else {
+    enum hasCustomJsonCtor = false;
+  }
+}
+
+unittest {
+  static struct S1 { }
+  static struct S2 { this(int i); }
+  static struct S3 { @jsonize this(int i); }
+  static struct S4 { this(float f); @jsonize this(int i); }
+
+  static assert(!hasCustomJsonCtor!S1);
+  static assert(!hasCustomJsonCtor!S2);
+  static assert( hasCustomJsonCtor!S3);
+  static assert( hasCustomJsonCtor!S4);
+
+  static class C1 { }
+  static class C2 { this() {} }
+  static class C3 { @jsonize this() {} }
+  static class C4 { @jsonize this(int i); this(float f); }
+
+  static assert(!hasCustomJsonCtor!C1);
+  static assert(!hasCustomJsonCtor!C2);
+  static assert( hasCustomJsonCtor!C3);
+  static assert( hasCustomJsonCtor!C4);
 }

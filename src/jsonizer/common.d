@@ -1,4 +1,4 @@
-module jsonizer.internal.attribute;
+module jsonizer.common;
 
 /// use @jsonize to mark members to be (de)serialized from/to json
 /// use @jsonize to mark a single contructor to use when creating an object using extract
@@ -108,7 +108,6 @@ unittest {
   assert(ex.extraKeys == [ ]);
 }
 
-// TODO: use std.typecons : Flag instead? Would likely need to public import.
 /// Whether to silently ignore json keys that do not map to serialized members.
 enum JsonizeIgnoreExtraKeys {
   no, /// silently ignore extra keys in the json object being deserialized
@@ -156,9 +155,7 @@ unittest {
   assert(ex.extraKeys == [ "s" ]);
 }
 
-/**
- * Customize the behavior of `toJSON` and `fromJSON`.
- */
+/// Customize the behavior of `toJSON` and `fromJSON`.
 struct JsonizeOptions {
   /**
    * A default-constructed `JsonizeOptions`.
@@ -191,4 +188,16 @@ struct JsonizeOptions {
    * This is particularly useful when input JSON has not originated from D.
    */
   string delegate(string) classMap;
+}
+
+package:
+// Get the json key corresponding to  `T.member`.
+template jsonKey(T, string member) {
+    alias attrs = T._getUDAs!(member, jsonize);
+    static if (!attrs.length)
+      enum jsonKey = member;
+    else static if (attrs[$ - 1].key)
+      enum jsonKey = attrs[$ - 1].key;
+    else
+      enum jsonKey = member;
 }

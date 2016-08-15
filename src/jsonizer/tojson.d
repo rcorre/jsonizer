@@ -14,7 +14,7 @@ import std.conv : to;
 import std.file : write;
 import std.exception : enforce;
 import std.typecons : staticIota, Flag;
-import jsonizer.internal.attribute;
+import jsonizer.common;
 
 // Primitive Type Conversions -----------------------------------------------------------
 /// convert a JSONValue to a JSONValue (identity)
@@ -248,17 +248,6 @@ unittest {
   assert(json.array[0].integer == 1);
   assert(json.array[1].integer == 2);
   assert(json.array[2].integer == 3);
-}
-
-// TODO: put in jsonizer.common
-template jsonKey(T, string member) {
-    alias attrs = T._getUDAs!(member, jsonize);
-    static if (!attrs.length)
-      enum jsonKey = member;
-    else static if (attrs[$ - 1].key)
-      enum jsonKey = attrs[$ - 1].key;
-    else
-      enum jsonKey = member;
 }
 
 // True if `val` is equal to the initial value of that type

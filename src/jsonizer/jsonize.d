@@ -8,11 +8,7 @@
   */
 module jsonizer.jsonize;
 
-import jsonizer.tojson : toJSON;
-import jsonizer.fromjson : fromJSON;
-import jsonizer.internal.util;
-
-public import jsonizer.internal.attribute;
+import jsonizer.common;
 
 /**
  * Enable `fromJSON`/`toJSON` support for the type this is mixed in to.
@@ -91,6 +87,8 @@ unittest {
     static int j;
     void k() { };
     static void l() { };
+    alias Int = int;
+    enum s = 5;
   }
 
   static assert (S._membersWithUDA!attr == AliasSeq!("a", "c", "e", "g"));
