@@ -381,11 +381,11 @@ T fromJSONImpl(T, P)(JSONValue json, P parent, in ref JsonizeOptions options) {
     return invokePrimitiveCtor!T(json, parent);
   }
 
-  static if (!isNested!T && is(T == class) && is(typeof(T.init.populateFromJSON)))
+  static if (!isNested!T && is(T == class))
   {
-    // look for class keyword in json
+    // if the class is identified in the json, construct an instance of the
+    // specified type
     auto className = json.fromJSON!string(options.classKey, null);
-    // try creating an instance with Object.factory
     if (options.classMap) {
         if(auto tmp = options.classMap(className))
           className = tmp;
@@ -395,7 +395,7 @@ T fromJSONImpl(T, P)(JSONValue json, P parent, in ref JsonizeOptions options) {
       assert(obj !is null, "failed to Object.factory " ~ className);
       auto instance = cast(T) obj;
       assert(instance !is null, "failed to cast " ~ className ~ " to " ~ T.stringof);
-      instance.populateFromJSON(json, options);
+      populate(instance, json, options);
       return instance;
     }
   }
@@ -532,6 +532,9 @@ void populate(T)(ref T obj, JSONValue json, in JsonizeOptions opt) {
   uint fieldsFound = 0;
 
   foreach (member ; T._membersWithUDA!jsonize) {
+    pragma(msg, T.stringof);
+    pragma(msg, member);
+    pragma(msg, T._writeMemberType!member);
     string key = jsonKey!(T, member);
 
     auto required = JsonizeIn.unspecified;
@@ -543,14 +546,21 @@ void populate(T)(ref T obj, JSONValue json, in JsonizeOptions opt) {
 
     if (auto jsonval = key in json.object) {
       ++fieldsFound;
-      alias MemberType = typeof(obj._readMember!member()); // TODO
+      alias MemberType = T._writeMemberType!member;
 
-      static if (isAggregateType!MemberType && isNested!MemberType)
-        auto val = fromJSONImpl!Inner(*jsonval, obj, opt);
-      else
-        auto val = fromJSON!MemberType(*jsonval, opt);
+      static if (!is(MemberType == void)) {
+        static if (isAggregateType!MemberType && isNested!MemberType)
+          auto val = fromJSONImpl!Inner(*jsonval, obj, opt);
+        else {
+          auto val = fromJSON!MemberType(*jsonval, opt);
+        }
 
-      obj._writeMember!(MemberType, member)(val);
+        // TODO: remove me!
+        import std.stdio;
+        writefln("%s._writeMember!(%s, %s)(%s)", T.stringof, MemberType.stringof, member,
+                 val);
+        obj._writeMember!(MemberType, member)(val);
+      }
     }
     else {
       if (required == JsonizeIn.yes) missingKeys ~= key;

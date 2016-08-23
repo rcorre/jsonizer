@@ -54,6 +54,21 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
       alias _getUDAs = getUDAs!(mixin(name), uda);
   }
 
+  template _writeMemberType(string name) {
+    import std.meta : Filter, AliasSeq;
+    import std.traits : Parameters;
+    alias overloads = AliasSeq!(__traits(getOverloads, typeof(this), name));
+    enum hasOneArg(alias f) = Parameters!f.length == 1;
+    alias setters = Filter!(hasOneArg, overloads);
+
+    static if (setters.length)
+      alias _writeMemberType = Parameters!(setters[0]);
+    else static if (__traits(compiles, mixin("this."~name~"=this."~name)))
+      alias _writeMemberType = typeof(mixin("this."~name));
+    else
+      alias _writeMemberType = void;
+  }
+
   auto _readMember(string name)() {
       return __traits(getMember, this, name);
   }
