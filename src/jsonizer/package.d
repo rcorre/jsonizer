@@ -251,17 +251,13 @@ unittest {
   import std.math : approxEqual;
   static class Parent {
     mixin JsonizeMe;
-    @jsonize {
-      int x;
-      string s;
-    }
+    @jsonize int x;
+    @jsonize string s;
   }
 
   static class Child : Parent {
     mixin JsonizeMe;
-    @jsonize {
-      float f;
-    }
+    @jsonize float f;
   }
 
   auto c = new Child;
@@ -275,6 +271,7 @@ unittest {
   assert(json.fromJSON!float("f").approxEqual(2.1));
 
   auto child = json.fromJSON!Child;
+  assert(child !is null);
   assert(child.x == 5 && child.s == "hello" && child.f.approxEqual(2.1));
 
   auto parent = json.fromJSON!Parent;

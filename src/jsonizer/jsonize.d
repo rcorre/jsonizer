@@ -60,10 +60,11 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
     alias overloads = AliasSeq!(__traits(getOverloads, typeof(this), name));
     enum hasOneArg(alias f) = Parameters!f.length == 1;
     alias setters = Filter!(hasOneArg, overloads);
+    void tryassign()() { mixin("this."~name~"=this."~name~";"); }
 
     static if (setters.length)
       alias _writeMemberType = Parameters!(setters[0]);
-    else static if (__traits(compiles, mixin("this."~name~"=this."~name)))
+    else static if (__traits(compiles, tryassign()))
       alias _writeMemberType = typeof(mixin("this."~name));
     else
       alias _writeMemberType = void;

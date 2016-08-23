@@ -532,9 +532,6 @@ void populate(T)(ref T obj, JSONValue json, in JsonizeOptions opt) {
   uint fieldsFound = 0;
 
   foreach (member ; T._membersWithUDA!jsonize) {
-    pragma(msg, T.stringof);
-    pragma(msg, member);
-    pragma(msg, T._writeMemberType!member);
     string key = jsonKey!(T, member);
 
     auto required = JsonizeIn.unspecified;
@@ -555,10 +552,6 @@ void populate(T)(ref T obj, JSONValue json, in JsonizeOptions opt) {
           auto val = fromJSON!MemberType(*jsonval, opt);
         }
 
-        // TODO: remove me!
-        import std.stdio;
-        writefln("%s._writeMember!(%s, %s)(%s)", T.stringof, MemberType.stringof, member,
-                 val);
         obj._writeMember!(MemberType, member)(val);
       }
     }
