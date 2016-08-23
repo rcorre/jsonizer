@@ -174,7 +174,6 @@ unittest {
   */
 }
 
-/++
 // unfortunately these test classes must be implemented outside the unittest
 // as Object.factory (and ClassInfo.find) cannot work with nested classes
 private {
@@ -199,6 +198,7 @@ unittest {
   import std.json   : parseJSON;
   import std.string : format;
   import std.traits : fullyQualifiedName;
+  import jsonizer;
 
   // need to use these because unittest is assigned weird name
   // normally would just be "modulename.classname"
@@ -334,6 +334,7 @@ unittest {
   import jsonizer.fromjson   : fromJSON;
 
   static class A {
+    mixin JsonizeMe;
     private const int a;
 
     this(float f) {
@@ -361,6 +362,7 @@ unittest {
 // Unable to construct class containing private (not marked with @jsonize) types.
 unittest {
   import std.json : parseJSON;
+  import jsonizer;
 
   static class A {
     mixin JsonizeMe;
@@ -382,6 +384,7 @@ unittest {
 // Unable to construct class with const types.
 unittest {
   import std.json : parseJSON;
+  import jsonizer;
 
   static class A {
     mixin JsonizeMe;
@@ -403,6 +406,7 @@ unittest {
 // Unable to construct class containing private (not marked with @jsonize) types.
 unittest {
   import std.json : parseJSON;
+  import jsonizer;
 
   static class A {
     mixin JsonizeMe;
@@ -423,6 +427,7 @@ unittest {
 
 unittest {
   import std.json : parseJSON;
+  import jsonizer;
 
   static struct A
   {
@@ -449,6 +454,7 @@ unittest {
 
 unittest {
   import std.json : parseJSON;
+  import jsonizer;
 
   static struct A
   {
@@ -478,6 +484,7 @@ unittest {
 unittest {
   import std.json : parseJSON;
   import std.exception;
+  import jsonizer;
 
   static struct T
   {
@@ -504,4 +511,3 @@ unittest {
   assert(t.b == t2.b);
   assert(t2.c == "");
 }
-++/
