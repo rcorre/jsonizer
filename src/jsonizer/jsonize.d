@@ -89,9 +89,6 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
 
   static if (is(typeof(this) == class)) {
     static this() {
-      // TODO: remove me!
-      import std.stdio;
-      writeln(typeof(this).stringof);
       import std.traits : BaseClassesTuple, fullyQualifiedName;
       import jsonizer.fromjson;
       enum name = fullyQualifiedName!(typeof(this));

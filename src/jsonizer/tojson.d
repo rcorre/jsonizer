@@ -166,10 +166,10 @@ JSONValue toJSON(T)(T obj) if (!isBuiltinType!T) {
   foreach(member ; T._membersWithUDA!jsonize) {
     enum key = jsonKey!(T, member);
 
-    auto output = JsonizeIn.unspecified;
+    auto output = JsonizeOut.unspecified;
     foreach (attr ; T._getUDAs!(member, jsonize))
-      if (attr.perform_in != JsonizeIn.unspecified)
-        output = attr.perform_in;
+      if (attr.perform_out != JsonizeIn.unspecified)
+        output = attr.perform_out;
 
     if (output == JsonizeOut.no) continue;
 
