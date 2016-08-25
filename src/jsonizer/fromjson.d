@@ -22,6 +22,14 @@ import std.typecons : staticIota, Tuple;
 import jsonizer.exceptions;
 import jsonizer.common;
 
+// HACK: this is a hack to allow referencing this particular overload using
+// &fromJSON!T in the JsonizeMe mixin
+T _fromJSON(T)(JSONValue json,
+               in ref JsonizeOptions options = JsonizeOptions.defaults)
+{
+  return fromJSON!T(json, options);
+}
+
 /**
  * Deserialize json into a value of type `T`.
  *
@@ -258,7 +266,6 @@ T fromJSON(T)(JSONValue json,
   return (key in json.object) ? fromJSON!T(json.object[key]) : defaultVal;
 }
 
-
 /// Substitute default values when keys aren't present.
 unittest {
   auto aa = ["a": 1, "b": 2];
@@ -390,13 +397,12 @@ T fromJSONImpl(T, P)(JSONValue json, P parent, in ref JsonizeOptions options) {
         if(auto tmp = options.classMap(className))
           className = tmp;
     }
-    if (className !is null) {
-      auto obj = Object.factory(className);
-      assert(obj !is null, "failed to Object.factory " ~ className);
-      auto instance = cast(T) obj;
-      assert(instance !is null, "failed to cast " ~ className ~ " to " ~ T.stringof);
-      populate(instance, json, options);
-      return instance;
+    if (className) {
+      auto handler = className in T._jsonizeCtors;
+      assert(handler, className ~ " not registered in " ~ T.stringof);
+      JsonizeOptions newopts = options;
+      newopts.classKey = null; // don't recursively loop looking up class name
+      return (*handler)(json, newopts);
     }
   }
 

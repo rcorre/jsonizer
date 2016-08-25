@@ -14,6 +14,7 @@ public import jsonizer.jsonize;
 public import jsonizer.common;
 public import jsonizer.exceptions;
 
+/++
 /// object serialization -- fields only
 unittest {
   import std.math : approxEqual;
@@ -365,3 +366,4 @@ unittest {
 
   assert(deserialized.val == orig.val);
 }
+++/

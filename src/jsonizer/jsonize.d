@@ -34,7 +34,9 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
 
       enum isInstanceField = __traits(compiles, mixin("this."~name~".offsetof"));
 
+      // the &this.name check makes sure this is not an alias
       enum isInstanceMethod =
+        __traits(compiles, mixin("&this."~name)) &&
         isSomeFunction!(mixin("this."~name)) &&
         !__traits(isStaticFunction, mixin("this."~name));
 
@@ -45,7 +47,6 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
     }
 
     enum members = Erase!("this", __traits(allMembers, typeof(this)));
-
     alias _membersWithUDA = Filter!(include, members);
   }
 
@@ -78,7 +79,27 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
       __traits(getMember, this, name) = val;
   }
 
+  static import std.json;
+  static import jsonizer.common;
   alias _jsonizeIgnoreExtra = ignoreExtra;
+  private alias constructor =
+    typeof(this) function(std.json.JSONValue,
+                          in ref jsonizer.common.JsonizeOptions);
+  static constructor[string] _jsonizeCtors;
+
+  static if (is(typeof(this) == class)) {
+    static this() {
+      // TODO: remove me!
+      import std.stdio;
+      writeln(typeof(this).stringof);
+      import std.traits : BaseClassesTuple, fullyQualifiedName;
+      import jsonizer.fromjson;
+      enum name = fullyQualifiedName!(typeof(this));
+      foreach (base ; BaseClassesTuple!(typeof(this)))
+        static if (__traits(hasMember, base, "_jsonizeCtors"))
+          base._jsonizeCtors[name] = &_fromJSON!(typeof(this));
+    }
+  }
 }
 
 version (unittest)
@@ -139,6 +160,7 @@ unittest {
   static assert (A._membersWithUDA!attr == AliasSeq!("a"));
 }
 
+/++
 unittest {
   import std.meta : AliasSeq;
 
@@ -173,6 +195,7 @@ unittest {
   static assert (D._membersWithUDA!attr == AliasSeq!("b"));
   */
 }
+++/
 
 // unfortunately these test classes must be implemented outside the unittest
 // as Object.factory (and ClassInfo.find) cannot work with nested classes
