@@ -99,9 +99,6 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
   }
 }
 
-version (unittest)
-  import std.meta : AliasSeq;
-
 unittest {
   static struct attr { string s; }
   static struct S {
@@ -125,7 +122,7 @@ unittest {
     enum s = 5;
   }
 
-  static assert (S._membersWithUDA!attr == AliasSeq!("a", "c", "e", "g"));
+  static assert ([S._membersWithUDA!attr] == ["a", "c", "e", "g"]);
 }
 
 unittest {
@@ -141,8 +138,8 @@ unittest {
     }
   }
 
-  static assert (Outer._membersWithUDA!attr == AliasSeq!("a"));
-  static assert (Outer.Inner._membersWithUDA!attr == AliasSeq!("b"));
+  static assert ([Outer._membersWithUDA!attr] == ["a"]);
+  static assert ([Outer.Inner._membersWithUDA!attr] == ["b"]);
 }
 
 unittest {
@@ -154,12 +151,10 @@ unittest {
     @attr int a;
   }
 
-  static assert (A._membersWithUDA!attr == AliasSeq!("a"));
+  static assert ([A._membersWithUDA!attr] == ["a"]);
 }
 
 unittest {
-  import std.meta : AliasSeq;
-
   struct attr { string s; }
 
   static class A {
@@ -169,18 +164,18 @@ unittest {
     string c() { return "hi"; }
   }
 
-  static assert (A._membersWithUDA!attr == AliasSeq!("a", "b"));
+  static assert ([A._membersWithUDA!attr] == ["a", "b"]);
 
   static class B : A { mixin JsonizeMe; }
 
-  static assert (B._membersWithUDA!attr == AliasSeq!("a", "b"));
+  static assert ([B._membersWithUDA!attr] == ["a", "b"]);
 
   static class C : A {
     mixin JsonizeMe;
     @attr int d;
   }
 
-  static assert (C._membersWithUDA!attr == AliasSeq!("d", "a", "b"));
+  static assert ([C._membersWithUDA!attr] == ["d", "a", "b"]);
 
   /* TODO -- handle subclass disabling inherited member
   class D : A {
@@ -188,6 +183,6 @@ unittest {
     @disable int a;
   }
 
-  static assert (D._membersWithUDA!attr == AliasSeq!("b"));
+  static assert (D._membersWithUDA!attr == ["b"]);
   */
 }
