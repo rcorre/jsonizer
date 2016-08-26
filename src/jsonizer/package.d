@@ -352,20 +352,6 @@ unittest {
   assert(reconstruct._x == b._x && reconstruct._s == b._s);
 }
 
-// members that potentially conflict with variables used in the mixin
-unittest {
-  static struct Foo {
-    mixin JsonizeMe;
-    @jsonize int val;
-  }
-
-  Foo orig = Foo(3);
-  auto serialized   = orig.toJSON;
-  auto deserialized = serialized.fromJSON!Foo;
-
-  assert(deserialized.val == orig.val);
-}
-
 // unfortunately these test classes must be implemented outside the unittest
 // as Object.factory (and ClassInfo.find) cannot work with nested classes
 private {
