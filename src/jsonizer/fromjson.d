@@ -17,8 +17,7 @@ import std.traits;
 import std.string;
 import std.algorithm;
 import std.exception;
-import std.typetuple;
-import std.typecons : staticIota, Tuple;
+import std.typecons;
 import jsonizer.exceptions;
 import jsonizer.common;
 
@@ -172,7 +171,7 @@ unittest {
 /// Convert a json object to a user-defined type.
 /// See the docs for `JsonizeMe` for more detailed examples.
 unittest {
-  import jsonizer;
+  import jsonizer.jsonize;
   static struct MyStruct {
     mixin JsonizeMe;
 
@@ -219,28 +218,15 @@ unittest {
 /// Deserialize an instance of a user-defined type from a json object.
 unittest {
   import jsonizer.jsonize;
-  import jsonizer.tojson;
 
   static struct Foo {
     mixin JsonizeMe;
-
-    @jsonize {
-      int i;
-      string[] a;
-    }
+    @jsonize int i;
+    @jsonize string[] a;
   }
 
-  auto jstr = q{
-    {
-      "i": 1,
-        "a": [ "a", "b" ]
-    }
-  };
-
-  // you could use `readJSON` instead of `parseJSON.fromJSON`
-  auto foo = jstr.parseJSON.fromJSON!Foo;
-  assert(foo.i == 1);
-  assert(foo.a == [ "a", "b" ]);
+  auto foo = `{"i": 12, "a": [ "a", "b" ]}`.parseJSON.fromJSON!Foo;
+  assert(foo == Foo(12, [ "a", "b" ]));
 }
 
 /**
@@ -408,7 +394,7 @@ T fromJSONImpl(T, P)(JSONValue json, P parent, in ref JsonizeOptions options) {
 
   // next, try to find a contructor marked with @jsonize and call that
   static if (__traits(hasMember, T, "__ctor")) {
-    alias Overloads = TypeTuple!(__traits(getOverloads, T, "__ctor"));
+    alias Overloads = AliasSeq!(__traits(getOverloads, T, "__ctor"));
     foreach(overload ; Overloads) {
       static if (staticIndexOf!(jsonize, __traits(getAttributes, overload)) >= 0) {
         if (canSatisfyCtor!overload(json)) {
@@ -674,7 +660,7 @@ unittest {
 
 template hasCustomJsonCtor(T) {
   static if (__traits(hasMember, T, "__ctor")) {
-    alias Overloads = TypeTuple!(__traits(getOverloads, T, "__ctor"));
+    alias Overloads = AliasSeq!(__traits(getOverloads, T, "__ctor"));
 
     enum test(alias fn) = staticIndexOf!(jsonize, __traits(getAttributes, fn)) >= 0;
 

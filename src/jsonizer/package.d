@@ -14,7 +14,6 @@ public import jsonizer.jsonize;
 public import jsonizer.common;
 public import jsonizer.exceptions;
 
-/++
 /// object serialization -- fields only
 unittest {
   import std.math : approxEqual;
@@ -77,6 +76,7 @@ unittest {
   assert(fromJSON!(Fields[])(jsonArray) == a);
 }
 
+/++
 /// object serialization with properties
 unittest {
   import std.math : approxEqual;

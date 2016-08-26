@@ -10,13 +10,12 @@ module jsonizer.tojson;
 
 import std.json;
 import std.traits;
-import std.conv : to;
-import std.file : write;
-import std.exception : enforce;
-import std.typecons : staticIota, Flag;
+import std.conv;
+import std.file;
+import std.exception;
+import std.typecons;
 import jsonizer.common;
 
-// Primitive Type Conversions -----------------------------------------------------------
 /// convert a JSONValue to a JSONValue (identity)
 JSONValue toJSON(JSONValue val) {
   return val;
@@ -187,22 +186,15 @@ JSONValue toJSON(T)(T obj) if (!isBuiltinType!T) {
 /// Serialize an instance of a user-defined type to a json object.
 unittest {
   import jsonizer.jsonize;
-  import jsonizer.fromjson;
 
   static struct Foo {
     mixin JsonizeMe;
-
-    @jsonize {
-      int i;
-      string[] a;
-    }
+    @jsonize int i;
+    @jsonize string[] a;
   }
 
   auto foo = Foo(12, [ "a", "b" ]);
-  auto json = foo.toJSON();
-
-  assert(json.fromJSON!int("i") == 12);
-  assert(json.fromJSON!(string[])("a") == [ "a", "b" ]);
+  assert(foo.toJSON() == `{"i": 12, "a": [ "a", "b" ]}`.parseJSON);
 }
 
 /// Whether to nicely format json string.
@@ -233,10 +225,8 @@ void writeJSON(T)(string path, T obj) {
 }
 
 unittest {
-  import std.json : parseJSON;
   import std.path : buildPath;
   import std.uuid : randomUUID;
-  import std.file : tempDir, readText, mkdirRecurse;
 
   auto dir = buildPath(tempDir(), "jsonizer_writejson_test");
   mkdirRecurse(dir);

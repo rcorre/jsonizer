@@ -99,6 +99,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
   }
 }
 
+/++
 version (unittest)
   import std.meta : AliasSeq;
 
@@ -529,3 +530,4 @@ unittest {
   assert(t.b == t2.b);
   assert(t2.c == "");
 }
+++/
