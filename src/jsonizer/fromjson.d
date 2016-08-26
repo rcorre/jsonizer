@@ -639,7 +639,6 @@ unittest {
 }
 
 template hasDefaultCtor(T) {
-  import std.traits : isNested;
   static if (isNested!T) {
     alias P = typeof(__traits(parent, T).init);
     enum hasDefaultCtor = is(typeof(P.init.new T()) == T);

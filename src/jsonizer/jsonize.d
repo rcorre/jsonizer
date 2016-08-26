@@ -157,13 +157,12 @@ unittest {
   static assert (A._membersWithUDA!attr == AliasSeq!("a"));
 }
 
-/++
 unittest {
   import std.meta : AliasSeq;
 
   struct attr { string s; }
 
-  class A {
+  static class A {
     mixin JsonizeMe;
     @attr int a;
     @attr string b() { return "hi"; }
@@ -172,11 +171,11 @@ unittest {
 
   static assert (A._membersWithUDA!attr == AliasSeq!("a", "b"));
 
-  class B : A { mixin JsonizeMe; }
+  static class B : A { mixin JsonizeMe; }
 
   static assert (B._membersWithUDA!attr == AliasSeq!("a", "b"));
 
-  class C : A {
+  static class C : A {
     mixin JsonizeMe;
     @attr int d;
   }
@@ -192,7 +191,6 @@ unittest {
   static assert (D._membersWithUDA!attr == AliasSeq!("b"));
   */
 }
-++/
 
 // unfortunately these test classes must be implemented outside the unittest
 // as Object.factory (and ClassInfo.find) cannot work with nested classes
