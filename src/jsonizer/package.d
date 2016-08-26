@@ -365,3 +365,341 @@ unittest {
 
   assert(deserialized.val == orig.val);
 }
+
+// unfortunately these test classes must be implemented outside the unittest
+// as Object.factory (and ClassInfo.find) cannot work with nested classes
+private {
+  class TestComponent {
+    mixin JsonizeMe;
+    @jsonize int c;
+  }
+
+  class TestCompA : TestComponent {
+    mixin JsonizeMe;
+    @jsonize int a;
+  }
+
+  class TestCompB : TestComponent {
+    mixin JsonizeMe;
+    @jsonize string b;
+  }
+}
+
+/// type inference
+unittest {
+  import std.json   : parseJSON;
+  import std.string : format;
+  import std.traits : fullyQualifiedName;
+  import jsonizer;
+
+  // need to use these because unittest is assigned weird name
+  // normally would just be "modulename.classname"
+  string classKeyA = fullyQualifiedName!TestCompA;
+  string classKeyB = fullyQualifiedName!TestCompB;
+
+  assert(Object.factory(classKeyA) !is null && Object.factory(classKeyB) !is null,
+      "cannot factory classes in unittest -- this is a problem with the test");
+
+  auto data = `[
+    {
+      "class": "%s",
+      "c": 1,
+      "a": 5
+    },
+    {
+      "class": "%s",
+      "c": 2,
+      "b": "hello"
+    }
+  ]`.format(classKeyA, classKeyB).parseJSON.fromJSON!(TestComponent[]);
+
+  auto a = cast(TestCompA) data[0];
+  auto b = cast(TestCompB) data[1];
+
+  assert(a !is null && a.c == 1 && a.a == 5);
+  assert(b !is null && b.c == 2 && b.b == "hello");
+}
+
+/// type inference with custom type key
+unittest {
+  import std.string : format;
+  import std.traits : fullyQualifiedName;
+  import jsonizer   : fromJSONString;
+
+  // use "type" instead of "class" to identify dynamic type
+  JsonizeOptions options;
+  options.classKey = "type";
+
+  // need to use these because unittest is assigned weird name
+  // normally would just be "modulename.classname"
+  string classKeyA = fullyQualifiedName!TestCompA;
+  string classKeyB = fullyQualifiedName!TestCompB;
+
+  auto data = `[
+    {
+      "type": "%s",
+      "c": 1,
+      "a": 5
+    },
+    {
+      "type": "%s",
+      "c": 2,
+      "b": "hello"
+    }
+  ]`.format(classKeyA, classKeyB)
+  .fromJSONString!(TestComponent[])(options);
+
+  auto a = cast(TestCompA) data[0];
+  auto b = cast(TestCompB) data[1];
+  assert(a !is null && a.c == 1 && a.a == 5);
+  assert(b !is null && b.c == 2 && b.b == "hello");
+}
+
+//test the class map
+unittest {
+  import std.string : format;
+  import std.traits : fullyQualifiedName;
+  import jsonizer   : fromJSONString;
+
+  // use "type" instead of "class" to identify dynamic type
+  JsonizeOptions options;
+  options.classKey = "type";
+
+  // need to use these because unittest is assigned weird name
+  // normally would just be "modulename.classname"
+  //string classKeyA = fullyQualifiedName!TestCompA;
+  //string classKeyB = fullyQualifiedName!TestCompB;
+
+  const string wrongName = "unrelated";
+
+  string[string] classMap = [
+    TestCompA.stringof : fullyQualifiedName!TestCompA,
+    TestCompB.stringof : fullyQualifiedName!TestCompB,
+    wrongName          : fullyQualifiedName!TestCompA
+  ];
+
+  options.classMap = delegate string(string rawKey) {
+    if(auto val = rawKey in classMap)
+      return *val;
+    else
+      return null;
+  };
+
+  auto data = `[
+    {
+      "type": "%s",
+      "c": 1,
+      "a": 5
+    },
+    {
+      "type": "%s",
+      "c": 2,
+      "b": "hello"
+    },
+    {
+      "type": "%s",
+      "c": 3,
+      "a": 12
+    }
+  ]`.format(TestCompA.stringof, TestCompB.stringof, wrongName)
+  .fromJSONString!(TestComponent[])(options);
+
+  auto a = cast(TestCompA) data[0];
+  auto b = cast(TestCompB) data[1];
+  auto c = cast(TestCompA) data[2];
+  assert(a !is null && a.c == 1 && a.a == 5);
+  assert(b !is null && b.c == 2 && b.b == "hello");
+  assert(c !is null && c.c == 3 && c.a == 12);
+}
+
+// TODO: These are not examples but edge-case tests
+// factor out into dedicated test modules
+
+// Validate issue #20:
+// Unable to de-jsonize a class when a construct is marked @jsonize.
+unittest {
+  import std.json            : parseJSON;
+  import std.algorithm       : canFind;
+  import std.exception       : collectException;
+  import jsonizer.jsonize    : jsonize, JsonizeMe;
+  import jsonizer.exceptions : JsonizeConstructorException;
+  import jsonizer.fromjson   : fromJSON;
+
+  static class A {
+    mixin JsonizeMe;
+    private const int a;
+
+    this(float f) {
+      a = 0;
+    }
+
+    @jsonize this(int a) {
+      this.a = a;
+    }
+
+    @jsonize this(string s, float f) {
+      a = 0;
+    }
+  }
+
+  auto ex = collectException!JsonizeConstructorException(`{}`.parseJSON.fromJSON!A);
+  assert(ex !is null, "failure to match @jsonize'd constructors should throw");
+  assert(ex.msg.canFind("(int a)") && ex.msg.canFind("(string s, float f)"),
+    "JsonizeConstructorException message should contain attempted constructors");
+  assert(!ex.msg.canFind("(float f)"),
+    "JsonizeConstructorException message should not contain non-jsonized constructors");
+}
+
+// Validate issue #17:
+// Unable to construct class containing private (not marked with @jsonize) types.
+unittest {
+  import std.json : parseJSON;
+  import jsonizer;
+
+  static class A {
+    mixin JsonizeMe;
+
+    private int a;
+
+    @jsonize public this(int a) {
+        this.a = a;
+    }
+  }
+
+  auto json = `{ "a": 5}`.parseJSON;
+  auto a = fromJSON!A(json);
+
+  assert(a.a == 5);
+}
+
+// Validate issue #18:
+// Unable to construct class with const types.
+unittest {
+  import std.json : parseJSON;
+  import jsonizer;
+
+  static class A {
+    mixin JsonizeMe;
+
+    const int a;
+
+    @jsonize public this(int a) {
+        this.a = a;
+    }
+  }
+
+  auto json = `{ "a": 5}`.parseJSON;
+  auto a = fromJSON!A(json);
+
+  assert(a.a == 5);
+}
+
+// Validate issue #19:
+// Unable to construct class containing private (not marked with @jsonize) types.
+unittest {
+  import std.json : parseJSON;
+  import jsonizer;
+
+  static class A {
+    mixin JsonizeMe;
+
+    alias Integer = int;
+    Integer a;
+
+    @jsonize public this(Integer a) {
+        this.a = a;
+    }
+  }
+
+  auto json = `{ "a": 5}`.parseJSON;
+  auto a = fromJSON!A(json);
+
+  assert(a.a == 5);
+}
+
+unittest {
+  import std.json : parseJSON;
+  import jsonizer;
+
+  static struct A
+  {
+    mixin JsonizeMe;
+    @jsonize int a;
+    @jsonize(Jsonize.opt) string attr;
+    @jsonize(JsonizeIn.opt) string attr2;
+  }
+
+  auto a = A(5);
+  assert(a == a.toJSON.fromJSON!A);
+  assert(a.toJSON == `{ "a":5, "attr2":"" }`.parseJSON);
+  assert(a.toJSON != `{ "a":5, "attr":"", "attr2":"" }`.parseJSON);
+  a.attr = "hello";
+  assert(a == a.toJSON.fromJSON!A);
+  assert(a.toJSON == `{ "a":5, "attr":"hello", "attr2":"" }`.parseJSON);
+  a.attr2 = "world";
+  assert(a == a.toJSON.fromJSON!A);
+  assert(a.toJSON == `{ "a":5, "attr":"hello", "attr2":"world" }`.parseJSON);
+  a.attr = "";
+  assert(a == a.toJSON.fromJSON!A);
+  assert(a.toJSON == `{ "a":5, "attr2":"world" }`.parseJSON);
+}
+
+unittest {
+  import std.json : parseJSON;
+  import jsonizer;
+
+  static struct A
+  {
+    mixin JsonizeMe;
+    @jsonize int a;
+    @disable int opEquals( ref const(A) );
+  }
+
+  static assert(!is(typeof(A.init==A.init)));
+
+  static struct B
+  {
+    mixin JsonizeMe;
+    @jsonize(Jsonize.opt) A a;
+  }
+
+  auto b = B(A(10));
+  assert(b.a.a == 10);
+  assert(b.a.a == (b.toJSON.fromJSON!B).a.a);
+  assert(b.toJSON == `{"a":{"a":10}}`.parseJSON);
+  b.a.a = 0;
+  assert(b.a.a == int.init );
+  assert(b.a.a == (b.toJSON.fromJSON!B).a.a);
+  assert(b.toJSON == "{}".parseJSON);
+}
+
+unittest {
+  import std.json : parseJSON;
+  import std.exception;
+  import jsonizer;
+
+  static struct T
+  {
+    mixin JsonizeMe;
+    @jsonize(Jsonize.opt)
+    {
+      int a;
+      @jsonize(JsonizeOut.no,JsonizeIn.yes) string b;
+      @jsonize(JsonizeOut.yes,JsonizeIn.no) string c;
+    }
+  }
+
+  auto t = T(5);
+  assertThrown(t.toJSON.fromJSON!T);
+  assert(t.toJSON == `{ "a":5, "c":"" }`.parseJSON);
+  t.b = "hello";
+  assert(t == `{ "a":5, "b":"hello" }`.parseJSON.fromJSON!T);
+  t.c = "world";
+  assert(t.toJSON == `{ "a":5, "c":"world" }`.parseJSON);
+  t.a = 0;
+  assert(t.toJSON == `{ "c":"world" }`.parseJSON);
+  auto t2 = `{ "b":"hello", "c":"okda" }`.parseJSON.fromJSON!T;
+  assert(t.a == t2.a);
+  assert(t.b == t2.b);
+  assert(t2.c == "");
+}
