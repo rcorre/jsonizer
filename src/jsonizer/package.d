@@ -352,39 +352,29 @@ unittest {
   assert(reconstruct._x == b._x && reconstruct._s == b._s);
 }
 
-// unfortunately these test classes must be implemented outside the unittest
-// as Object.factory (and ClassInfo.find) cannot work with nested classes
-private {
-  class TestComponent {
-    mixin JsonizeMe;
-    @jsonize int c;
-  }
-
-  class TestCompA : TestComponent {
-    mixin JsonizeMe;
-    @jsonize int a;
-  }
-
-  class TestCompB : TestComponent {
-    mixin JsonizeMe;
-    @jsonize string b;
-  }
-}
-
 /// type inference
 unittest {
   import std.json   : parseJSON;
   import std.string : format;
   import std.traits : fullyQualifiedName;
-  import jsonizer;
 
-  // need to use these because unittest is assigned weird name
-  // normally would just be "modulename.classname"
+  static class TestComponent {
+    mixin JsonizeMe;
+    @jsonize int c;
+  }
+
+  static class TestCompA : TestComponent {
+    mixin JsonizeMe;
+    @jsonize int a;
+  }
+
+  static class TestCompB : TestComponent {
+    mixin JsonizeMe;
+    @jsonize string b;
+  }
+
   string classKeyA = fullyQualifiedName!TestCompA;
   string classKeyB = fullyQualifiedName!TestCompB;
-
-  assert(Object.factory(classKeyA) !is null && Object.factory(classKeyB) !is null,
-      "cannot factory classes in unittest -- this is a problem with the test");
 
   auto data = `[
     {
@@ -410,7 +400,21 @@ unittest {
 unittest {
   import std.string : format;
   import std.traits : fullyQualifiedName;
-  import jsonizer   : fromJSONString;
+
+  static class TestComponent {
+    mixin JsonizeMe;
+    @jsonize int c;
+  }
+
+  static class TestCompA : TestComponent {
+    mixin JsonizeMe;
+    @jsonize int a;
+  }
+
+  static class TestCompB : TestComponent {
+    mixin JsonizeMe;
+    @jsonize string b;
+  }
 
   // use "type" instead of "class" to identify dynamic type
   JsonizeOptions options;
@@ -445,16 +449,25 @@ unittest {
 unittest {
   import std.string : format;
   import std.traits : fullyQualifiedName;
-  import jsonizer   : fromJSONString;
+
+  static class TestComponent {
+    mixin JsonizeMe;
+    @jsonize int c;
+  }
+
+  static class TestCompA : TestComponent {
+    mixin JsonizeMe;
+    @jsonize int a;
+  }
+
+  static class TestCompB : TestComponent {
+    mixin JsonizeMe;
+    @jsonize string b;
+  }
 
   // use "type" instead of "class" to identify dynamic type
   JsonizeOptions options;
   options.classKey = "type";
-
-  // need to use these because unittest is assigned weird name
-  // normally would just be "modulename.classname"
-  //string classKeyA = fullyQualifiedName!TestCompA;
-  //string classKeyB = fullyQualifiedName!TestCompB;
 
   const string wrongName = "unrelated";
 
@@ -497,9 +510,6 @@ unittest {
   assert(b !is null && b.c == 2 && b.b == "hello");
   assert(c !is null && c.c == 3 && c.a == 12);
 }
-
-// TODO: These are not examples but edge-case tests
-// factor out into dedicated test modules
 
 // Validate issue #20:
 // Unable to de-jsonize a class when a construct is marked @jsonize.
