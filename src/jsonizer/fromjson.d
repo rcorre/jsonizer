@@ -421,6 +421,7 @@ T fromJSONImpl(T, P)(JSONValue json, P parent, in ref JsonizeOptions options) {
 
 // return true if keys can satisfy parameter names
 bool canSatisfyCtor(alias Ctor)(JSONValue json) {
+  import std.typecons : staticIota;
   auto obj = json.object;
   alias Params   = ParameterIdentifierTuple!Ctor;
   alias Types    = ParameterTypeTuple!Ctor;
@@ -434,6 +435,7 @@ bool canSatisfyCtor(alias Ctor)(JSONValue json) {
 }
 
 T invokeCustomJsonCtor(T, alias Ctor, P)(JSONValue json, P parent) {
+  import std.typecons : staticIota;
   enum params    = ParameterIdentifierTuple!(Ctor);
   alias defaults = ParameterDefaultValueTuple!(Ctor);
   alias Types    = ParameterTypeTuple!(Ctor);

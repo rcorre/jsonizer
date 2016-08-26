@@ -99,7 +99,6 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
   }
 }
 
-/++
 version (unittest)
   import std.meta : AliasSeq;
 
@@ -193,6 +192,7 @@ unittest {
   */
 }
 
+/++
 // unfortunately these test classes must be implemented outside the unittest
 // as Object.factory (and ClassInfo.find) cannot work with nested classes
 private {

@@ -76,7 +76,6 @@ unittest {
   assert(fromJSON!(Fields[])(jsonArray) == a);
 }
 
-/++
 /// object serialization with properties
 unittest {
   import std.math : approxEqual;
@@ -366,4 +365,3 @@ unittest {
 
   assert(deserialized.val == orig.val);
 }
-++/
