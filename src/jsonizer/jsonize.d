@@ -34,7 +34,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
       static if (__traits(compiles, mixin("this."~name))) {
         enum isReserved = name.startsWith("__");
 
-        enum isInstanceField = 
+        enum isInstanceField =
           __traits(compiles, mixin("this."~name~".offsetof"));
 
         // the &this.name check makes sure this is not an alias
