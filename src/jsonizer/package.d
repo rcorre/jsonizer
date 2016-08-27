@@ -699,3 +699,17 @@ unittest {
   assert(t.b == t2.b);
   assert(t2.c == "");
 }
+
+// issue 29: Can't have static fields in JsonizeMe type; doesn't compile
+unittest {
+  import std.json : parseJSON;
+  static class A {
+    mixin JsonizeMe;
+    static string s;
+    static string str() { return "s"; }
+    @jsonize int a;
+  }
+  auto a = new A;
+  a.a = 5;
+  assert(a.toJSON == `{ "a":5 }`.parseJSON);
+}
