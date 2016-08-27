@@ -30,18 +30,24 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
     import std.string : startsWith;
 
     template include(string name) {
-      enum isReserved = name.startsWith("__");
+      // filter out inaccessible members, such as those with @disable
+      static if (__traits(compiles, mixin("this."~name))) {
+        enum isReserved = name.startsWith("__");
 
-      enum isInstanceField = __traits(compiles, mixin("this."~name~".offsetof"));
+        enum isInstanceField = 
+          __traits(compiles, mixin("this."~name~".offsetof"));
 
-      // the &this.name check makes sure this is not an alias
-      enum isInstanceMethod =
-        __traits(compiles, mixin("&this."~name)) &&
-        isSomeFunction!(mixin("this."~name)) &&
-        !__traits(isStaticFunction, mixin("this."~name));
+        // the &this.name check makes sure this is not an alias
+        enum isInstanceMethod =
+          __traits(compiles, mixin("&this."~name)) &&
+          isSomeFunction!(mixin("this."~name)) &&
+          !__traits(isStaticFunction, mixin("this."~name));
 
-      static if ((isInstanceField || isInstanceMethod) && !isReserved)
-        enum include = hasUDA!(mixin("this."~name), uda);
+        static if ((isInstanceField || isInstanceMethod) && !isReserved)
+          enum include = hasUDA!(mixin("this."~name), uda);
+        else
+          enum include = false;
+      }
       else
         enum include = false;
     }
@@ -177,12 +183,10 @@ unittest {
 
   static assert ([C._membersWithUDA!attr] == ["d", "a", "b"]);
 
-  /* TODO -- handle subclass disabling inherited member
-  class D : A {
+  static class D : A {
     mixin JsonizeMe;
     @disable int a;
   }
 
-  static assert (D._membersWithUDA!attr == ["b"]);
-  */
+  static assert ([D._membersWithUDA!attr] == ["b"]);
 }
