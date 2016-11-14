@@ -57,8 +57,10 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
   }
 
   template _getUDAs(string name, alias uda) {
+      import std.meta : Filter;
       import std.traits : getUDAs;
-      alias _getUDAs = getUDAs!(mixin(name), uda);
+      enum isValue(alias T) = is(typeof(T));
+      alias _getUDAs = Filter!(isValue, getUDAs!(mixin(name), uda));
   }
 
   template _writeMemberType(string name) {
