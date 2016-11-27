@@ -60,7 +60,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
       import std.meta : Filter;
       import std.traits : getUDAs;
       enum isValue(alias T) = is(typeof(T));
-      alias _getUDAs = Filter!(isValue, getUDAs!(mixin(name), uda));
+      alias _getUDAs = Filter!(isValue, getUDAs!(mixin("this."~name), uda));
   }
 
   template _writeMemberType(string name) {
@@ -191,4 +191,17 @@ unittest {
   }
 
   static assert ([D._membersWithUDA!attr] == ["b"]);
+}
+
+// Validate name conflicts (issue #36)
+unittest {
+  static struct attr { string s; }
+  static struct S {
+    mixin JsonizeMe;
+    @attr("foo") string name, key;
+  }
+
+  static assert([S._membersWithUDA!attr] == ["name", "key"]);
+  static assert([S._getUDAs!("name", attr)] == [attr("foo")]);
+  static assert([S._getUDAs!("key", attr)] == [attr("foo")]);
 }
