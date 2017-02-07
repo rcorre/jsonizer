@@ -19,9 +19,9 @@ struct jsonize {
   /// valid uses of @jsonize include:
   ///   @jsonize
   ///   @jsonize("foo")
-  ///   @jsonize(Jsonize.optional)
-  ///   @jsonize("bar", Jsonize.optional)
-  ///   @jsonize(Jsonize.optional, "bar")
+  ///   @jsonize(Jsonize.opt)
+  ///   @jsonize("bar", Jsonize.opt)
+  ///   @jsonize(Jsonize.opt, "bar")
   this(T ...)(T params) {
     foreach(idx , param ; params) {
       alias type = T[idx];

@@ -113,12 +113,12 @@ The above examples work on both classes and structs provided the following:
 ### Optional members
 By default, if a matching json entry is not found for a member marked with `@jsonize`,
 deserialization will fail.
-If this is not desired for a given member, mark it with `JsonizeIn.optional`.
+If this is not desired for a given member, mark it with `JsonizeIn.opt`.
 
 ```d
 class MyClass {
   @jsonize int i;
-  @jsonize(JsonizeIn.optional) float f;
+  @jsonize(JsonizeIn.opt) float f;
 }
 ```
 
@@ -139,10 +139,10 @@ like the below example, it demonstrates the flexibility of `@jsonize`:
 
 ```d
 class TotalMess {
-  @jsonize(JsonizeIn.optional) {
+  @jsonize(JsonizeIn.opt) {
     @jsonize("i") int _i;
-    @jsonize("f", JsonizeIn.always) float _f;
-    @jsonize(JsonizeIn.always, "s") float _s;
+    @jsonize("f", JsonizeIn.yes) float _f;
+    @jsonize(JsonizeIn.yes, "s") float _s;
   }
 }
 ```
@@ -152,10 +152,10 @@ If you want to serialize only non-default (`val != typeof(val).init`) fields, yo
 
 ```d
 class TotalMess {
-  @jsonize(JsonizeOut.optional) {
+  @jsonize(JsonizeOut.opt) {
     @jsonize("i") int _i;
-    @jsonize("f", JsonizeOut.always) float _f;
-    @jsonize(JsonizeOut.never, "s") float _s; // never serialized, only requred for deserialization
+    @jsonize("f", JsonizeOut.yes) float _f;
+    @jsonize(JsonizeOut.no, "s") float _s; // never serialized, only requred for deserialization
   }
 }
 ```
@@ -164,8 +164,8 @@ As a shortcut to `JsonizeIn/JsonizeOut`, you can just use `Jsonize`:
 
 ```d
 class TotalMess {
-  // equivalent to: @jsonize(JsonizeIn.optional, JsonizeOut.optional)
-  @jsonize(Jsonize.optional) int a;
+  // equivalent to: @jsonize(JsonizeIn.opt, JsonizeOut.opt)
+  @jsonize(Jsonize.opt) int a;
 }
 ```
 
