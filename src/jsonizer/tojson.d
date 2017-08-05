@@ -167,7 +167,7 @@ JSONValue toJSON(T)(T obj) if (!isBuiltinType!T) {
 
     auto output = JsonizeOut.unspecified;
     foreach (attr ; T._getUDAs!(member, jsonize))
-      if (attr.perform_out != JsonizeIn.unspecified)
+      if (attr.perform_out != JsonizeOut.unspecified)
         output = attr.perform_out;
 
     if (output == JsonizeOut.no) continue;
