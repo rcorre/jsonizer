@@ -205,3 +205,24 @@ unittest {
   static assert([S._getUDAs!("name", attr)] == [attr("foo")]);
   static assert([S._getUDAs!("key", attr)] == [attr("foo")]);
 }
+
+// #40: Can't deserialize both as exact type and as part of a hierarchy
+unittest
+{
+  import jsonizer.fromjson;
+  import jsonizer.tojson;
+
+  static class Base
+  {
+      mixin JsonizeMe;
+      @jsonize("class") string className() { return this.classinfo.name; }
+  }
+  static class Derived : Base
+  {
+      mixin JsonizeMe;
+  }
+
+  auto a = new Derived();
+  auto b = a.toJSON.fromJSON!Derived;
+  assert(b !is null);
+}

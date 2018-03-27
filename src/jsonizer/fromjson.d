@@ -383,7 +383,7 @@ T fromJSONImpl(T, P)(JSONValue json, P parent, in ref JsonizeOptions options) {
         if(auto tmp = options.classMap(className))
           className = tmp;
     }
-    if (className) {
+    if (className && className != fullyQualifiedName!T) {
       auto handler = className in T._jsonizeCtors;
       assert(handler, className ~ " not registered in " ~ T.stringof);
       JsonizeOptions newopts = options;
