@@ -11,7 +11,8 @@ module jsonizer.exceptions;
 import std.json      : JSONValue, JSON_TYPE;
 import std.string    : format, join;
 import std.traits    : ParameterTypeTuple, ParameterIdentifierTuple;
-import std.typecons  : staticIota;
+import std.meta      : aliasSeqOf;
+import std.range     : iota;
 import std.typetuple : staticMap;
 
 /// Base class of any exception thrown by `jsonizer`.
@@ -149,7 +150,7 @@ template ctorSignature(alias ctor) {
   static string paramString() {
     string s = "";
 
-    foreach(i ; staticIota!(0, params.length)) {
+    foreach(i ; aliasSeqOf!(params.length.iota)) {
       s ~= types[i].stringof ~ " " ~ params[i];
 
       static if (i < params.length - 1) {

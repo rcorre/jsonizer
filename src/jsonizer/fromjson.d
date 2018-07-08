@@ -421,12 +421,12 @@ T fromJSONImpl(T, P)(JSONValue json, P parent, in ref JsonizeOptions options) {
 
 // return true if keys can satisfy parameter names
 bool canSatisfyCtor(alias Ctor)(JSONValue json) {
-  import std.typecons : staticIota;
+  import std.meta : aliasSeqOf;
   auto obj = json.object;
   alias Params   = ParameterIdentifierTuple!Ctor;
   alias Types    = ParameterTypeTuple!Ctor;
   alias Defaults = ParameterDefaultValueTuple!Ctor;
-  foreach(i ; staticIota!(0, Params.length)) {
+  foreach(i ; aliasSeqOf!(Params.length.iota)) {
     if (Params[i] !in obj && typeid(Defaults[i]) == typeid(void)) {
       return false; // param had no default value and was not specified
     }
@@ -435,12 +435,12 @@ bool canSatisfyCtor(alias Ctor)(JSONValue json) {
 }
 
 T invokeCustomJsonCtor(T, alias Ctor, P)(JSONValue json, P parent) {
-  import std.typecons : staticIota;
+  import std.meta : aliasSeqOf;
   enum params    = ParameterIdentifierTuple!(Ctor);
   alias defaults = ParameterDefaultValueTuple!(Ctor);
   alias Types    = ParameterTypeTuple!(Ctor);
   Tuple!(Types) args;
-  foreach(i ; staticIota!(0, params.length)) {
+  foreach(i ; aliasSeqOf!(params.length.iota)) {
     enum paramName = params[i];
     if (paramName in json.object) {
       args[i] = json.object[paramName].fromJSON!(Types[i]);
