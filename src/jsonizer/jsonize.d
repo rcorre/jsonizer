@@ -24,6 +24,8 @@ import jsonizer.common;
 mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtraKeys.yes) {
   static import std.json;
 
+  enum type = typeof(this).stringof;
+
   template _membersWithUDA(uda) {
     import std.meta : Erase, Filter;
     import std.traits : isSomeFunction, hasUDA;
@@ -31,20 +33,20 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
 
     template include(string name) {
       // filter out inaccessible members, such as those with @disable
-      static if (__traits(compiles, mixin("this."~name))) {
+      static if (__traits(compiles, mixin(type~"."~name))) {
         enum isReserved = name.startsWith("__");
 
         enum isInstanceField =
-          __traits(compiles, mixin("this."~name~".offsetof"));
+          __traits(compiles, mixin(type~"."~name~".offsetof"));
 
         // the &this.name check makes sure this is not an alias
         enum isInstanceMethod =
-          __traits(compiles, mixin("&this."~name)) &&
-          isSomeFunction!(mixin("this."~name)) &&
-          !__traits(isStaticFunction, mixin("this."~name));
+          __traits(compiles, mixin("&"~type~"."~name)) &&
+          isSomeFunction!(mixin(type~"."~name)) &&
+          !__traits(isStaticFunction, mixin(type~"."~name));
 
         static if ((isInstanceField || isInstanceMethod) && !isReserved)
-          enum include = hasUDA!(mixin("this."~name), uda);
+          enum include = hasUDA!(mixin(type~"."~name), uda);
         else
           enum include = false;
       }
@@ -60,7 +62,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
       import std.meta : Filter;
       import std.traits : getUDAs;
       enum isValue(alias T) = is(typeof(T));
-      alias _getUDAs = Filter!(isValue, getUDAs!(mixin("this."~name), uda));
+      alias _getUDAs = Filter!(isValue, getUDAs!(mixin(type~"."~name), uda));
   }
 
   template _writeMemberType(string name) {
@@ -74,7 +76,7 @@ mixin template JsonizeMe(JsonizeIgnoreExtraKeys ignoreExtra = JsonizeIgnoreExtra
     static if (setters.length)
       alias _writeMemberType = Parameters!(setters[0]);
     else static if (__traits(compiles, tryassign()))
-      alias _writeMemberType = typeof(mixin("this."~name));
+      alias _writeMemberType = typeof(mixin(type~"."~name));
     else
       alias _writeMemberType = void;
   }

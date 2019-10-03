@@ -517,9 +517,10 @@ unittest {
   import std.json            : parseJSON;
   import std.algorithm       : canFind;
   import std.exception       : collectException;
-  import jsonizer.jsonize    : jsonize, JsonizeMe;
+  import jsonizer.common     : jsonize;
   import jsonizer.exceptions : JsonizeConstructorException;
   import jsonizer.fromjson   : fromJSON;
+  import jsonizer.jsonize    : JsonizeMe;
 
   static class A {
     mixin JsonizeMe;

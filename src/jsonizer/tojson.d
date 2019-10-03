@@ -106,7 +106,7 @@ JSONValue toJSON(T)(T args) if (isArray!T && !isSomeString!T) {
 /// Serialize a homogenous array.
 unittest {
   auto json = [1, 2, 3].toJSON;
-  assert(json.type == JSON_TYPE.ARRAY);
+  assert(json.type == JSONType.array);
   assert(json.array[0].integer == 1);
   assert(json.array[1].integer == 2);
   assert(json.array[2].integer == 3);
@@ -126,7 +126,7 @@ JSONValue toJSON(T...)(T args) {
 /// Serialize a heterogenous array.
 unittest {
   auto json = toJSON(1, "hi", 0.4);
-  assert(json.type == JSON_TYPE.ARRAY);
+  assert(json.type == JSONType.array);
   assert(json.array[0].integer  == 1);
   assert(json.array[1].str      == "hi");
   assert(json.array[2].floating == 0.4);
@@ -148,7 +148,7 @@ JSONValue toJSON(T)(T map) if (isAssociativeArray!T) {
 /// Serialize an associative array.
 unittest {
   auto json = ["a" : 1, "b" : 2, "c" : 3].toJSON;
-  assert(json.type == JSON_TYPE.OBJECT);
+  assert(json.type == JSONType.object);
   assert(json.object["a"].integer == 1);
   assert(json.object["b"].integer == 2);
   assert(json.object["c"].integer == 3);
