@@ -8,7 +8,7 @@
   */
 module jsonizer.exceptions;
 
-import std.json      : JSONValue, JSON_TYPE;
+import std.json      : JSONValue, JSONType;
 import std.string    : format, join;
 import std.traits    : ParameterTypeTuple, ParameterIdentifierTuple;
 import std.meta      : aliasSeqOf;
@@ -30,10 +30,10 @@ class JsonizeTypeException : Exception {
   const {
     TypeInfo targetType;  /// Type jsonizer was attempting to deserialize to.
     JSONValue json;       /// The json value that was being deserialized
-    JSON_TYPE[] expected; /// The JSON_TYPEs that would have been acceptable
+    JSONType[] expected; /// The JSON_TYPEs that would have been acceptable
   }
 
-  this(TypeInfo targetType, JSONValue json, JSON_TYPE[] expected ...) {
+  this(TypeInfo targetType, JSONValue json, JSONType[] expected ...) {
     super(fmt.format(targetType, expected, json.type, json));
 
     this.targetType = targetType;
@@ -47,16 +47,16 @@ unittest {
 
   auto json       = JSONValue(4.2f);
   auto targetType = typeid(bool);
-  auto expected   = [JSON_TYPE.TRUE, JSON_TYPE.FALSE];
+  auto expected   = [JSONType.true_, JSONType.false_];
 
-  auto e = new JsonizeTypeException(targetType, json, JSON_TYPE.TRUE, JSON_TYPE.FALSE);
+  auto e = new JsonizeTypeException(targetType, json, JSONType.true_, JSONType.false_);
 
   assert(e.json == json);
   assert(e.targetType == targetType);
   assert(e.expected == expected);
   assert(e.msg.canFind("fromJSON!bool"),
       "JsonizeTypeException should report type argument");
-  assert(e.msg.canFind("TRUE") && e.msg.canFind("FALSE"),
+  assert(e.msg.canFind("true_") && e.msg.canFind("false_"),
       "JsonizeTypeException should report all acceptable json types");
 }
 
