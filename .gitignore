@@ -10,3 +10,4 @@ __dummy.html
 
 # library
 *.a
+*.lib
